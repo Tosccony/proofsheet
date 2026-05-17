@@ -45,7 +45,7 @@ import { generateGeminiImage, type GeminiGenerateInput } from './gemini-image.js
 import { generateOpenAIImage, type OpenAIGenerateInput, type OpenAIQuality } from './openai-image.js';
 
 const SERVER_NAME = 'proofsheet';
-const SERVER_VERSION = '0.4.0';
+const SERVER_VERSION = '0.5.0';
 
 // Resolve the plugin root from this file's location so themes/ lookups work
 // regardless of cwd. Source: src/mcp-server.ts; compiled: bin/mcp-server.js.
@@ -622,10 +622,10 @@ async function startHttp(server: Server, host: string, port: number): Promise<vo
   });
 }
 
-async function main(): Promise<void> {
+export async function runServer(argv: string[]): Promise<void> {
   let flags: ParsedFlags;
   try {
-    flags = parseServerArgs(process.argv.slice(2));
+    flags = parseServerArgs(argv);
   } catch (err) {
     process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
     process.exit(1);
@@ -642,7 +642,7 @@ async function main(): Promise<void> {
 
 const entryName = path.basename(process.argv[1] ?? '');
 if (entryName === 'mcp-server.js' || entryName === 'mcp-server.ts') {
-  main().catch((err) => {
+  runServer(process.argv.slice(2)).catch((err) => {
     process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
     process.exit(1);
   });

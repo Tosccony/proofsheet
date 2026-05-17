@@ -10,16 +10,32 @@ The name comes from the photographer's contact sheet, the grid of options you pi
 npm install -g proofsheet     # optional, or just use npx below
 ```
 
-## Quick install (every MCP client uses the same shape)
+## One-command install
 
-You bring your own API keys. proofsheet runs locally on your machine via `npx`. Nothing is hosted, nothing is shared, your keys never leave your config file.
+```
+npx -y proofsheet init
+```
 
-You need at least one of:
+The `init` command auto-detects every MCP client you have installed (Claude desktop, Claude Code, Codex, Cursor), prompts for any missing API keys, and safely patches each config to register proofsheet. Backs up every file it touches to `<file>.bak`. Idempotent — running it again is safe.
+
+After it finishes, restart your MCP clients and try:
+
+> "Use proofsheet to generate an image of a coffee mug on a wooden table, editorial-photography theme"
+
+That's the whole install for most users. You only need to read the rest of this README if you want to customize the config by hand, self-host the HTTP server, or develop on proofsheet itself.
+
+### What `init` needs from you
+
+At least one of:
 
 - **Gemini key** ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)) with billing enabled. About $0.04 per image. No free tier.
 - **OpenAI key** ([platform.openai.com/api-keys](https://platform.openai.com/api-keys)). About $0.04 standard, up to $0.17 high quality. Note: a ChatGPT subscription does **not** cover API usage.
 
-Then add the snippet below to your MCP client's config.
+If `GEMINI_API_KEY` or `OPENAI_API_KEY` are already in your environment, `init` detects them and skips the prompt. Otherwise it asks you to paste them (and writes them only to the local config files on your machine, never anywhere else).
+
+## Manual install (if you'd rather not run `init`)
+
+The snippet below is what `init` writes for you. Paste it into your MCP client's config manually if you prefer.
 
 ### Claude desktop
 

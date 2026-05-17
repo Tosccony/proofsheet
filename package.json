@@ -1,10 +1,10 @@
 {
   "name": "proofsheet",
-  "version": "0.4.1",
-  "description": "MCP server for image generation, refinement, and reusable themes. Backed by Nano Banana (Gemini 2.5 Flash Image) or gpt-image-1 (OpenAI). Works in Claude desktop, ChatGPT desktop, Claude Code, Codex, Cursor, Cline, and any other MCP-compatible client.",
+  "version": "0.5.0",
+  "description": "MCP server for image generation, refinement, and reusable themes. Backed by Nano Banana (Gemini 2.5 Flash Image) or gpt-image-1 (OpenAI). Works in Claude desktop, ChatGPT desktop, Claude Code, Codex, Cursor, Cline, and any other MCP-compatible client. Includes `proofsheet init` to auto-register with your installed clients.",
   "type": "module",
   "bin": {
-    "proofsheet": "./bin/mcp-server.js"
+    "proofsheet": "bin/proofsheet.js"
   },
   "files": [
     "bin/",
@@ -41,17 +41,19 @@
     "url": "https://github.com/Tosccony/proofsheet/issues"
   },
   "scripts": {
-    "build": "tsc && esbuild src/mcp-server.ts --bundle --platform=node --target=node18 --format=esm --outfile=bin/mcp-server.js --banner:js=\"#!/usr/bin/env node\"",
+    "build": "tsc && esbuild src/cli.ts --bundle --platform=node --target=node18 --format=esm --outfile=bin/proofsheet.js --banner:js=\"#!/usr/bin/env node\"",
     "typecheck": "tsc --noEmit",
     "gemini": "node bin/gemini-image.js",
     "openai": "node bin/openai-image.js",
-    "mcp": "node bin/mcp-server.js",
-    "mcp:http": "node bin/mcp-server.js --transport http --port 3000",
-    "dev:mcp": "tsx src/mcp-server.ts",
+    "mcp": "node bin/proofsheet.js",
+    "mcp:http": "node bin/proofsheet.js --transport http --port 3000",
+    "init": "node bin/proofsheet.js init",
+    "dev:cli": "tsx src/cli.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "smol-toml": "^1.6.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
