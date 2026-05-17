@@ -1,6 +1,6 @@
 # proofsheet
 
-A Claude Code plugin for generating, refining, and theming images with Nano Banana (Gemini 2.5 Flash Image). Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
+A Claude Code plugin for generating, refining, and theming images. Backed by either **Nano Banana** (Gemini 2.5 Flash Image) or **OpenAI** (gpt-image-1), with the same skill workflow on top of both. Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
 
 The name comes from the photographer's contact sheet, the grid of options you pick from before printing the keeper.
 
@@ -57,16 +57,34 @@ There are two refinement modes:
 
 If you point `/refine` at a foreign image with no sidecar, only image-to-image mode is available.
 
+## Two providers
+
+You can pick a provider per call via `--provider gemini|openai`. They have different strengths and you'll want both around.
+
+| | Gemini (Nano Banana) | OpenAI (gpt-image-1) |
+|---|---|---|
+| Aspect ratios | Flexible via prose (anything reads, even if model often drifts to square) | Three discrete sizes only: 1024×1024, 1024×1536, 1536×1024 |
+| Strength | Painterly, illustrated, and editorial photographic styles | Legible text-in-image, tight compositional control, very clean product photography |
+| Quality tiers | None | `auto` (default), `low`, `medium`, `high` |
+| Cost per image | About $0.04 | About $0.04 standard, up to about $0.17 high quality |
+| Image-to-image | Yes | Yes |
+| API auth | `GEMINI_API_KEY` | `OPENAI_API_KEY` (subscription does not cover API) |
+
+Default is `gemini`. Set neither key and the corresponding provider just isn't available. Set both and you can switch per call.
+
 ## Setup
 
-1. Node 18 or higher (for built-in `fetch`).
+1. Node 18 or higher (for built-in `fetch` and `FormData`).
 2. `tsx`, pulled in automatically by the plugin's `devDependencies`.
-3. A `GEMINI_API_KEY` with **billing enabled** on the AI Studio account. Nano Banana has no free tier (roughly $0.04 per image, same rate for generation and refinement).
+3. At least one of:
+   - `GEMINI_API_KEY` with billing enabled on the AI Studio account. Nano Banana has no free tier (roughly $0.04 per image).
+   - `OPENAI_API_KEY` from https://platform.openai.com/api-keys. Pay-per-image, separate from any ChatGPT subscription you may have.
 
-Get a key at https://aistudio.google.com/apikey. On Windows PowerShell:
+Get a Gemini key at https://aistudio.google.com/apikey. On Windows PowerShell:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'YOUR-KEY', 'User')
+[System.Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'YOUR-KEY', 'User')
 ```
 
 Restart your terminal after setting.
@@ -90,17 +108,23 @@ Point Claude Code at this repo as a plugin source from any other project. Claude
 
 ## Using the CLI directly
 
-The script behind the skills works on its own if you ever want to bypass Claude Code:
+The scripts behind the skills work on their own if you ever want to bypass Claude Code. There are two parallel scripts with the same shape, one per provider:
 
 ```powershell
-# Text-to-image
+# Gemini text-to-image
 tsx bin/gemini-image.ts "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays, no watermarks" "out.png" --ratio 4:3
 
-# Image-to-image (refinement)
+# Gemini image-to-image (refinement)
 tsx bin/gemini-image.ts "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged. No text, no watermarks." "out-refined.png" --input "out.png"
+
+# OpenAI text-to-image, high quality
+tsx bin/openai-image.ts "a single white tulip on raw linen, soft window light, 1:1 aspect ratio" "out-openai.png" --ratio 1:1 --quality high
+
+# OpenAI image-to-image
+tsx bin/openai-image.ts "Warm the lighting to a golden afternoon tone. Keep composition unchanged." "out-openai-edit.png" --input "out-openai.png"
 ```
 
-Each call writes a sidecar to `<dir>/.meta/<basename>.json`.
+Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provider` field, so `/refine` later knows which backend to use.
 
 ## File layout
 
@@ -119,6 +143,7 @@ proofsheet/
       themes.md
   bin/
     gemini-image.ts
+    openai-image.ts
   themes/
     (9 seeded themes)
   README.md

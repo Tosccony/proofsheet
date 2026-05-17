@@ -1,11 +1,12 @@
 {
   "name": "proofsheet",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Image generation, refinement, and reusable themes — powered by Nano Banana (Gemini 2.5 Flash Image).",
+  "description": "Image generation, refinement, and reusable themes powered by Nano Banana (Gemini) or gpt-image-1 (OpenAI).",
   "type": "module",
   "scripts": {
-    "image": "tsx bin/gemini-image.ts",
+    "gemini": "tsx bin/gemini-image.ts",
+    "openai": "tsx bin/openai-image.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

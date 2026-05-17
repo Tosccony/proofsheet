@@ -17,16 +17,19 @@ Don't use for: generating a brand-new image from scratch (use the `image-generat
 
 ## Prerequisites
 
-- `GEMINI_API_KEY` env var set, with billing enabled. ~$0.04 per refinement (same rate as generation).
-- `bin/gemini-image.ts` exists in this plugin/project. It supports both modes via flags.
+Refinement supports both providers via `--provider gemini|openai`. The provider defaults to whatever the original image was generated with (read from the sidecar's `provider` field). If the sidecar is missing or has no provider field, default to `gemini`.
 
-If `GEMINI_API_KEY` is missing, halt with the same instructions as the image-generation skill.
+- For Gemini refinements: `GEMINI_API_KEY` env var set, with billing enabled. ~$0.04 per refinement.
+- For OpenAI refinements: `OPENAI_API_KEY` env var set. Pay-per-image (~$0.04 standard, ~$0.17 high). The ChatGPT subscription does not cover this.
+- `bin/gemini-image.ts` and `bin/openai-image.ts` both exist in the plugin and support text-to-image and image-to-image via flags.
+
+If the required key is missing, halt with the same instructions as the image-generation skill.
 
 ## The flow
 
 ### 1. Read the image and its sidecar
 
-The user invokes `/refine <path>`. Verify the file exists. Then look for the sidecar at `<dir>/.meta/<basename>.json` — e.g., for `generated/_images/foo.png`, the sidecar lives at `generated/_images/.meta/foo.png.json`:
+The user invokes `/refine <path>`. Verify the file exists. Then look for the sidecar at `<dir>/.meta/<basename>.json` — e.g., for `generated/_images/foo.png`, the sidecar lives at `generated/_images/.meta/foo.png.json`. Note the `provider` field in the sidecar (`gemini` or `openai`); refinements default to the same provider unless the user explicitly overrides via `--provider <name>`:
 
 - **If sidecar exists**: read and parse it. You now have the original prompt, ratio, theme (if any), timestamp, and model. This is gold — even if the image was generated 6 months ago, you can refine precisely.
 - **If sidecar is missing** (e.g., user dropped in a foreign image or the sidecar got deleted): tell the user "No sidecar metadata for `<path>`. I can still refine it image-to-image, but I won't be able to tweak-the-original-prompt because I don't have it. Want to proceed image-to-image only, or paste the original prompt if you have it?"
@@ -59,7 +62,7 @@ Show the new full prompt to the user before dispatching so they can spot if you 
 Then dispatch the same way `image-generation` does:
 
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/gemini-image.ts" @'
+tsx "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.ts" @'
 <new prompt>
 '@ "<new-output-path>" --ratio <ratio> --theme <theme-if-any>
 ```
@@ -71,7 +74,7 @@ Output path default: `./generated/_images/<original-slug>-refined-<YYYYMMDD-HHMM
 Take the user's edit instruction as-is (or refine it lightly for clarity) and pass it as the prompt, with the existing image via `--input`:
 
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/gemini-image.ts" @'
+tsx "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.ts" @'
 <edit instruction, e.g. "Warm up the overall lighting to a golden afternoon tone. Keep everything else identical — subject, composition, framing. No text overlays, no watermarks.">
 '@ "<new-output-path>" --input "<original-path>"
 ```
