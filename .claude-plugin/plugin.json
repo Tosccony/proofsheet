@@ -1,9 +1,29 @@
 {
   "name": "proofsheet",
-  "version": "0.2.0",
-  "description": "Image generation, refinement, and reusable themes for blog posts, slides, newsletters, and anything else needing a real image. Backed by either Nano Banana (Gemini 2.5 Flash Image) or OpenAI (gpt-image-1), with provider picked per call. Includes interactive art direction (/image), surgical refinement of existing images (/refine), and a custom theme builder (/new-theme).",
+  "version": "0.3.0",
+  "description": "Image generation, refinement, and reusable themes for blog posts, slides, newsletters, and anything else needing a real image. Backed by either Nano Banana (Gemini 2.5 Flash Image) or OpenAI (gpt-image-1), with provider picked per call. Includes /welcome onboarding, interactive art direction (/image), surgical refinement of existing images (/refine), and a custom theme builder (/new-theme).",
   "author": {
-    "name": "Tosccony"
+    "name": "Tosccony",
+    "url": "https://github.com/Tosccony"
   },
-  "keywords": ["image-generation", "image-refinement", "gemini", "nano-banana", "openai", "gpt-image-1", "ai-imagery", "themes", "art-direction"]
+  "homepage": "https://github.com/Tosccony/proofsheet",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tosccony/proofsheet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Tosccony/proofsheet/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "image-generation",
+    "image-refinement",
+    "gemini",
+    "nano-banana",
+    "openai",
+    "gpt-image-1",
+    "ai-imagery",
+    "themes",
+    "art-direction"
+  ]
 }

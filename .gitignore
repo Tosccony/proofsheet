@@ -2,6 +2,7 @@ node_modules/
 .env
 .env.*
 *.log
+*.tsbuildinfo
 
 # Local-only files
 .claude/settings.local.json
@@ -9,3 +10,7 @@ node_modules/
 
 # Generated test images (when running /image from within this repo)
 generated/
+
+# Note: bin/ contains the COMPILED JavaScript runtime, which IS committed
+# so the plugin works on a fresh install without npm install. Source TS
+# lives in src/. Run `npm run build` to regenerate bin/ from src/.

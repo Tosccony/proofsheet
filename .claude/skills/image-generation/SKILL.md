@@ -15,19 +15,33 @@ The recipe for taking a free-form user idea and turning it into a high-quality N
 
 Don't use for: refining an image that already exists (use the `image-refinement` skill — `/refine <path>`), building a reusable theme (use the `theme-builder` skill — `/new-theme`), or video/motion outputs.
 
+## First-run check (do this before anything else)
+
+Before proceeding, check two things in order:
+
+1. **Onboarded marker** at `$env:USERPROFILE\.proofsheet\onboarded` (Windows) or `~/.proofsheet/onboarded` (Unix). PowerShell: `Test-Path "$env:USERPROFILE\.proofsheet\onboarded"`. Bash: `test -f ~/.proofsheet/onboarded`.
+2. **API keys**: `$env:GEMINI_API_KEY` and `$env:OPENAI_API_KEY`.
+
+Branch the response on the combination per the `proofsheet-onboarding` skill's table:
+
+- Marker missing + keys missing → strong nudge to run `/welcome`, do not proceed.
+- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/welcome`, or `skip` to dispatch your image. Either way, I'll only ask once." Wait for `tour` or `skip`, then proceed accordingly.
+- Marker exists + keys missing → standard key-missing halt (see Prerequisites below). Don't mention `/welcome`.
+- Marker exists + keys set → just proceed silently.
+
 ## Prerequisites
 
 Depends on which provider the user picks.
 
 **For `--provider gemini` (default):**
 - `GEMINI_API_KEY` env var set, with billing enabled on the AI Studio account. Nano Banana has no free tier (~$0.04/image).
-- `bin/gemini-image.ts` exists in this plugin/project.
+- `bin/gemini-image.js` exists in this plugin/project.
 
 If `GEMINI_API_KEY` is missing, halt with: "GEMINI_API_KEY not set. Generate a key at https://aistudio.google.com/apikey with billing enabled, then set persistently via PowerShell: `[System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'YOUR-KEY', 'User')` and restart the terminal."
 
 **For `--provider openai`:**
 - `OPENAI_API_KEY` env var set. Pay-per-image (~$0.04 standard, ~$0.17 high quality at 1024×1024). Note: a ChatGPT Plus/Pro subscription does NOT grant API access; this is separate billing.
-- `bin/openai-image.ts` exists in this plugin/project.
+- `bin/openai-image.js` exists in this plugin/project.
 
 If `OPENAI_API_KEY` is missing, halt with: "OPENAI_API_KEY not set. Generate a key at https://platform.openai.com/api-keys, then set persistently via PowerShell: `[System.Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'YOUR-KEY', 'User')` and restart the terminal. (Note: your ChatGPT subscription does not cover API usage.)"
 
@@ -82,8 +96,8 @@ When `--yolo` is set, skip steps 2 and 3 — pick the strongest single direction
 Run the script with the final enriched prompt, output path, and any of `--theme` / `--ratio` / `--quality` so they get recorded in the sidecar JSON for future refinement.
 
 **Pick the script based on provider.** Two parallel scripts live in `bin/`:
-- `bin/gemini-image.ts` — for `--provider gemini` (default)
-- `bin/openai-image.ts` — for `--provider openai`
+- `bin/gemini-image.js` — for `--provider gemini` (default)
+- `bin/openai-image.js` — for `--provider openai`
 
 Both accept the same positional args (`<prompt>` `<output-path>`) and the same `--input`, `--theme`, `--ratio` flags. The OpenAI script additionally accepts `--quality`.
 
@@ -91,21 +105,21 @@ Both accept the same positional args (`<prompt>` `<output-path>`) and the same `
 
 PowerShell example (Gemini, plugin context):
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/gemini-image.ts" @'
+node "$env:CLAUDE_PLUGIN_ROOT/bin/gemini-image.js" @'
 <full enriched prompt here>
 '@ "<output-path>" --ratio 4:3 --theme editorial-photography
 ```
 
 PowerShell example (OpenAI, plugin context):
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/openai-image.ts" @'
+node "$env:CLAUDE_PLUGIN_ROOT/bin/openai-image.js" @'
 <full enriched prompt here>
 '@ "<output-path>" --ratio 4:3 --theme editorial-photography --quality high
 ```
 
 Bash example (plugin context):
 ```bash
-tsx "${CLAUDE_PLUGIN_ROOT}/bin/gemini-image.ts" "<full enriched prompt>" "<output-path>" --ratio 4:3 --theme editorial-photography
+node "${CLAUDE_PLUGIN_ROOT}/bin/gemini-image.js" "<full enriched prompt>" "<output-path>" --ratio 4:3 --theme editorial-photography
 ```
 
 Direct (running inside this plugin's repo): drop the `$env:CLAUDE_PLUGIN_ROOT/` prefix and use `bin/<script>.ts`.

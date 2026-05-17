@@ -1,7 +1,7 @@
 /**
  * Direct OpenAI image-generation / image-refinement client.
  *
- * Sibling to bin/gemini-image.ts. Calls OpenAI's gpt-image-1 REST API.
+ * Sibling to src/gemini-image.ts (compiled to bin/gemini-image.js). Calls OpenAI's gpt-image-1 REST API.
  * Supports two modes:
  *   1. Text-to-image (default): prompt -> PNG via /v1/images/generations.
  *   2. Image-to-image: prompt + existing image -> modified PNG via /v1/images/edits.
@@ -11,9 +11,11 @@
  * and a quality field if one was set.
  *
  * Usage:
- *   tsx bin/openai-image.ts "<prompt>" <output-path>
- *   tsx bin/openai-image.ts "<prompt>" <output-path> --input <existing-image>
- *   tsx bin/openai-image.ts "<prompt>" <output-path> --ratio 1:1 --quality high --theme <name>
+ *   node bin/openai-image.js "<prompt>" <output-path>
+ *   node bin/openai-image.js "<prompt>" <output-path> --input <existing-image>
+ *   node bin/openai-image.js "<prompt>" <output-path> --ratio 1:1 --quality high --theme <name>
+ *
+ * (Development: tsx src/openai-image.ts ...)
  *
  * Env: OPENAI_API_KEY must be set. Pricing is roughly $0.04 (auto/medium) to
  * $0.17 (high) per 1024x1024 image. The ChatGPT subscription does NOT cover
@@ -88,7 +90,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   const [prompt, outputPath] = positional;
   if (!prompt || !outputPath) {
     throw new Error(
-      'Usage: tsx bin/openai-image.ts "<prompt>" <output-path> [--input <path>] [--theme <name>] [--ratio <ratio>] [--quality auto|low|medium|high]',
+      'Usage: node bin/openai-image.js "<prompt>" <output-path> [--input <path>] [--theme <name>] [--ratio <ratio>] [--quality auto|low|medium|high]',
     );
   }
 

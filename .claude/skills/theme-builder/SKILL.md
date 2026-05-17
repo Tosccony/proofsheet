@@ -17,6 +17,14 @@ A good theme is the difference between getting 5 cohesive blog headers across a 
 
 Don't use for: a single one-off image (use `/image`), refining an existing image (use `/refine`), or editing an already-saved theme (just edit the file in `themes/` directly — themes are plain markdown).
 
+## First-run check (do this before anything else)
+
+Check the onboarded marker at `$env:USERPROFILE\.proofsheet\onboarded` (Windows) or `~/.proofsheet/onboarded` (Unix), plus API keys. Branch per the table in the `proofsheet-onboarding` skill:
+
+- Marker missing + keys missing → strong nudge to run `/welcome`, do not proceed.
+- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/welcome`, or `skip` to start building your theme. I'll only ask once."
+- Marker exists → just proceed (any test-image dispatch later in the flow handles the per-provider key check separately).
+
 ## The flow
 
 This is a guided conversation, not a form. Ask one or two questions at a time, listen, build on what they say. Don't dump all the questions at once. Total exchange should feel like a brief design chat (~5–8 turns), not an interrogation.

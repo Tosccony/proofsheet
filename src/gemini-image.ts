@@ -13,9 +13,11 @@
  * survives even when the chat doesn't.
  *
  * Usage:
- *   tsx bin/gemini-image.ts "<prompt>" <output-path>
- *   tsx bin/gemini-image.ts "<prompt>" <output-path> --input <existing-image>
- *   tsx bin/gemini-image.ts "<prompt>" <output-path> --theme <name> --ratio <ratio>
+ *   node bin/gemini-image.js "<prompt>" <output-path>
+ *   node bin/gemini-image.js "<prompt>" <output-path> --input <existing-image>
+ *   node bin/gemini-image.js "<prompt>" <output-path> --theme <name> --ratio <ratio>
+ *
+ * (Development: tsx src/gemini-image.ts ...)
  *
  * Env: GEMINI_API_KEY must be set. The key needs billing enabled on its AI
  * Studio account — gemini-2.5-flash-image (Nano Banana) has no free tier.
@@ -87,7 +89,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   const [prompt, outputPath] = positional;
   if (!prompt || !outputPath) {
     throw new Error(
-      'Usage: tsx bin/gemini-image.ts "<prompt>" <output-path> [--input <path>] [--theme <name>] [--ratio <ratio>]',
+      'Usage: node bin/gemini-image.js "<prompt>" <output-path> [--input <path>] [--theme <name>] [--ratio <ratio>]',
     );
   }
 

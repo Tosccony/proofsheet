@@ -15,13 +15,21 @@ The recipe for taking an existing image and producing a better one. Two flows de
 
 Don't use for: generating a brand-new image from scratch (use the `image-generation` skill / `/image`), building a theme (`/new-theme`), or batch operations across many images.
 
+## First-run check (do this before anything else)
+
+Check the onboarded marker at `$env:USERPROFILE\.proofsheet\onboarded` (Windows) or `~/.proofsheet/onboarded` (Unix), plus the relevant API key for the provider on the sidecar (or both keys if no sidecar). Branch per the table in the `proofsheet-onboarding` skill:
+
+- Marker missing + keys missing → strong nudge to run `/welcome`, do not proceed.
+- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/welcome`, or `skip` to dispatch your refinement. I'll only ask once."
+- Marker exists → just proceed (key-missing halts use standard instructions, no welcome suggestion).
+
 ## Prerequisites
 
 Refinement supports both providers via `--provider gemini|openai`. The provider defaults to whatever the original image was generated with (read from the sidecar's `provider` field). If the sidecar is missing or has no provider field, default to `gemini`.
 
 - For Gemini refinements: `GEMINI_API_KEY` env var set, with billing enabled. ~$0.04 per refinement.
 - For OpenAI refinements: `OPENAI_API_KEY` env var set. Pay-per-image (~$0.04 standard, ~$0.17 high). The ChatGPT subscription does not cover this.
-- `bin/gemini-image.ts` and `bin/openai-image.ts` both exist in the plugin and support text-to-image and image-to-image via flags.
+- `bin/gemini-image.js` and `bin/openai-image.js` both exist in the plugin and support text-to-image and image-to-image via flags.
 
 If the required key is missing, halt with the same instructions as the image-generation skill.
 
@@ -62,7 +70,7 @@ Show the new full prompt to the user before dispatching so they can spot if you 
 Then dispatch the same way `image-generation` does:
 
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.ts" @'
+node "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.js" @'
 <new prompt>
 '@ "<new-output-path>" --ratio <ratio> --theme <theme-if-any>
 ```
@@ -74,7 +82,7 @@ Output path default: `./generated/_images/<original-slug>-refined-<YYYYMMDD-HHMM
 Take the user's edit instruction as-is (or refine it lightly for clarity) and pass it as the prompt, with the existing image via `--input`:
 
 ```powershell
-tsx "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.ts" @'
+node "$env:CLAUDE_PLUGIN_ROOT/bin/<provider>-image.js" @'
 <edit instruction, e.g. "Warm up the overall lighting to a golden afternoon tone. Keep everything else identical — subject, composition, framing. No text overlays, no watermarks.">
 '@ "<new-output-path>" --input "<original-path>"
 ```

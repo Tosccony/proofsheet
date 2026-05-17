@@ -8,6 +8,7 @@ The name comes from the photographer's contact sheet, the grid of options you pi
 
 | Command | What it does |
 |---------|-------------|
+| `/welcome` | First-run tutorial. Walks you through what proofsheet does, checks your API keys, demos each command, and offers a free dry-run. Run this once after installing. |
 | `/image <prompt>` | Generate a new image. Takes a free-form description, proposes 2 to 3 art-directed takes with suggested aspect ratios, and dispatches the chosen one. |
 | `/refine <path>` | Refine an existing image. Either tweak the original prompt and regenerate fresh, or do an image-to-image edit (warm the lighting, remove an element, fix a color cast). |
 | `/new-theme` | Interactively build a reusable aesthetic. Walks you through medium, palette, composition, references, and what to avoid, then saves a `themes/<slug>.md` file usable in any future `/image` call. |
@@ -74,9 +75,10 @@ Default is `gemini`. Set neither key and the corresponding provider just isn't a
 
 ## Setup
 
-1. Node 18 or higher (for built-in `fetch` and `FormData`).
-2. `tsx`, pulled in automatically by the plugin's `devDependencies`.
-3. At least one of:
+You need:
+
+1. **Node 18 or higher** (for built-in `fetch` and `FormData`). No other runtime dependencies; the plugin ships compiled JS so there's no `npm install` step at runtime.
+2. **At least one API key**:
    - `GEMINI_API_KEY` with billing enabled on the AI Studio account. Nano Banana has no free tier (roughly $0.04 per image).
    - `OPENAI_API_KEY` from https://platform.openai.com/api-keys. Pay-per-image, separate from any ChatGPT subscription you may have.
 
@@ -89,22 +91,45 @@ Get a Gemini key at https://aistudio.google.com/apikey. On Windows PowerShell:
 
 Restart your terminal after setting.
 
+After install, run `/welcome` in Claude Code for a guided walkthrough of every command, including a (free, optional) live test.
+
 ## Install
 
-### Option A: open this repo directly in Claude Code
+Three install paths depending on how you use Claude Code.
+
+### Option A: install via Claude Code's plugin system (recommended)
+
+From any project where you want proofsheet available:
+
+```
+/plugin marketplace add https://github.com/Tosccony/proofsheet
+/plugin install proofsheet
+```
+
+That's it. No `npm install`, no clone, no build step. The compiled JS scripts are committed to the repo and run on plain Node 18+. After install, run `/welcome` for a guided tour, or jump straight to `/image`, `/refine`, `/new-theme`, or `/themes`.
+
+### Option B: open this repo directly in Claude Code
+
+If you want to hack on proofsheet itself or use it inside its own directory:
 
 ```powershell
 git clone https://github.com/Tosccony/proofsheet.git
 cd proofsheet
-npm install
 claude .
 ```
 
-The `.claude/` folder at the project root makes `/image`, `/refine`, `/new-theme`, and `/themes` immediately available.
+No `npm install` needed for runtime. If you want to rebuild from source (after editing TS files in `src/`), run `npm install` then `npm run build`.
 
-### Option B: install as a plugin into another project
+### Option C: install as a plugin source pointed at a local checkout
 
-Point Claude Code at this repo as a plugin source from any other project. Claude Code sets `$env:CLAUDE_PLUGIN_ROOT` to the install location, and the skills resolve the bin script and seeded themes against that path. You still need `npm install` in this repo so `tsx` is available.
+Useful for plugin development against a local copy:
+
+```
+/plugin marketplace add /absolute/path/to/proofsheet
+/plugin install proofsheet
+```
+
+Claude Code sets `$env:CLAUDE_PLUGIN_ROOT` to your local path and the skills resolve scripts and seeded themes against it.
 
 ## Using the CLI directly
 
@@ -112,16 +137,16 @@ The scripts behind the skills work on their own if you ever want to bypass Claud
 
 ```powershell
 # Gemini text-to-image
-tsx bin/gemini-image.ts "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays, no watermarks" "out.png" --ratio 4:3
+node bin/gemini-image.js "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays, no watermarks" "out.png" --ratio 4:3
 
 # Gemini image-to-image (refinement)
-tsx bin/gemini-image.ts "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged. No text, no watermarks." "out-refined.png" --input "out.png"
+node bin/gemini-image.js "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged. No text, no watermarks." "out-refined.png" --input "out.png"
 
 # OpenAI text-to-image, high quality
-tsx bin/openai-image.ts "a single white tulip on raw linen, soft window light, 1:1 aspect ratio" "out-openai.png" --ratio 1:1 --quality high
+node bin/openai-image.js "a single white tulip on raw linen, soft window light, 1:1 aspect ratio" "out-openai.png" --ratio 1:1 --quality high
 
 # OpenAI image-to-image
-tsx bin/openai-image.ts "Warm the lighting to a golden afternoon tone. Keep composition unchanged." "out-openai-edit.png" --input "out-openai.png"
+node bin/openai-image.js "Warm the lighting to a golden afternoon tone. Keep composition unchanged." "out-openai-edit.png" --input "out-openai.png"
 ```
 
 Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provider` field, so `/refine` later knows which backend to use.
@@ -130,20 +155,27 @@ Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provide
 
 ```
 proofsheet/
-  .claude-plugin/plugin.json
+  .claude-plugin/
+    plugin.json          (plugin manifest)
+    marketplace.json     (single-plugin marketplace listing)
   .claude/
     skills/
       image-generation/SKILL.md
       image-refinement/SKILL.md
       theme-builder/SKILL.md
+      proofsheet-onboarding/SKILL.md
     commands/
+      welcome.md
       image.md
       refine.md
       new-theme.md
       themes.md
-  bin/
+  src/                   (TypeScript source, dev-time only)
     gemini-image.ts
     openai-image.ts
+  bin/                   (compiled JavaScript, ships with the plugin)
+    gemini-image.js
+    openai-image.js
   themes/
     (9 seeded themes)
   README.md
