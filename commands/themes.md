@@ -1,9 +1,9 @@
-List available image themes — both the seeded defaults shipped with this tool and any custom themes the user has built via `/new-theme`.
+List available image themes — both the seeded defaults shipped with this tool and any custom themes the user has built via `/proofsheet:new-theme`.
 
 ## What to do
 
 1. Look in two places:
-   - **Seeded themes** at `$env:CLAUDE_PLUGIN_ROOT/themes/` (PowerShell) or `${CLAUDE_PLUGIN_ROOT}/themes/` (bash). If unset, fall back to `./themes/` in this plugin's repo.
+   - **Seeded themes** at `$env:CLAUDE_PLUGIN_ROOT/themes/` (PowerShell) or `${CLAUDE_PLUGIN_ROOT}/proofsheet:themes/` (bash). If unset, fall back to `./themes/` in this plugin's repo.
    - **User themes** at `./themes/` in the user's current working directory.
 2. Read each `.md` file's frontmatter (`name`, `description`, `best-for`).
 3. Print a compact table:
@@ -20,11 +20,11 @@ SEEDED THEMES
 - corporate-clean — Bright even lighting, neutral palette, sharp digital photography, no styling drama. Best for: business deck imagery, LinkedIn banners.
 
 USER THEMES
-(none yet — create one with /new-theme)
+(none yet — create one with /proofsheet:new-theme)
 ```
 
 If a theme has malformed frontmatter, skip it but note "skipped: <filename> (bad frontmatter)" at the bottom.
 
 If there are no user themes, say so cleanly. If there are no seeded themes either (unusual), say "Seeded themes not found — `$CLAUDE_PLUGIN_ROOT/themes/` is missing or empty."
 
-After the listing, prompt: "Use one via `/image <prompt> --theme <slug>`, or build your own with `/new-theme`."
+After the listing, prompt: "Use one via `/proofsheet:image <prompt> --theme <slug>`, or build your own with `/proofsheet:new-theme`."

@@ -1,6 +1,6 @@
 ---
 name: image-generation
-description: Generate images via Nano Banana (Gemini 2.5 Flash Image) by taking a free-form user description, proposing 2–3 meaningfully different art-directed takes with suggested aspect ratios, and dispatching the chosen one. Use whenever the user asks for an image, picture, illustration, photo, header, hero shot, mood board, slide visual, blog illustration, social tile, or reference from a prompt — even casually ("give me an image of X", "I need a header for Y", "draw me Z"). Triggers include invoking `/image`. The enrichment is the value: never dispatch a one-line user prompt verbatim, always enrich first.
+description: Generate images via Nano Banana (Gemini 2.5 Flash Image) by taking a free-form user description, proposing 2–3 meaningfully different art-directed takes with suggested aspect ratios, and dispatching the chosen one. Use whenever the user asks for an image, picture, illustration, photo, header, hero shot, mood board, slide visual, blog illustration, social tile, or reference from a prompt — even casually ("give me an image of X", "I need a header for Y", "draw me Z"). Triggers include invoking `/proofsheet:image`. The enrichment is the value: never dispatch a one-line user prompt verbatim, always enrich first.
 ---
 
 # Image Generation
@@ -10,10 +10,10 @@ The recipe for taking a free-form user idea and turning it into a high-quality N
 ## When to use
 
 - The user asks for an image from a description ("an image of...", "a photo of...", "draw me...", "I need a visual of...", "header for my blog post about X", "slide visual for Y").
-- They invoke `/image <prompt>` or `/image <prompt> --theme <name>`.
+- They invoke `/proofsheet:image <prompt>` or `/proofsheet:image <prompt> --theme <name>`.
 - They're working on a blog post, slide deck, newsletter, social tile, mood board, reference image, or anything else needing one good picture.
 
-Don't use for: refining an image that already exists (use the `image-refinement` skill — `/refine <path>`), building a reusable theme (use the `theme-builder` skill — `/new-theme`), or video/motion outputs.
+Don't use for: refining an image that already exists (use the `image-refinement` skill — `/proofsheet:refine <path>`), building a reusable theme (use the `theme-builder` skill — `/proofsheet:new-theme`), or video/motion outputs.
 
 ## First-run check (do this before anything else)
 
@@ -24,9 +24,9 @@ Before proceeding, check two things in order:
 
 Branch the response on the combination per the `proofsheet-onboarding` skill's table:
 
-- Marker missing + keys missing → strong nudge to run `/welcome`, do not proceed.
-- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/welcome`, or `skip` to dispatch your image. Either way, I'll only ask once." Wait for `tour` or `skip`, then proceed accordingly.
-- Marker exists + keys missing → standard key-missing halt (see Prerequisites below). Don't mention `/welcome`.
+- Marker missing + keys missing → strong nudge to run `/proofsheet:welcome`, do not proceed.
+- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/proofsheet:welcome`, or `skip` to dispatch your image. Either way, I'll only ask once." Wait for `tour` or `skip`, then proceed accordingly.
+- Marker exists + keys missing → standard key-missing halt (see Prerequisites below). Don't mention `/proofsheet:welcome`.
 - Marker exists + keys set → just proceed silently.
 
 ## Prerequisites
@@ -58,10 +58,10 @@ Default to `gemini` unless the user specified otherwise or the use case is one O
 
 ### 1. Read the prompt and any flags
 
-Recognize flags in invocations like `/image <prompt> --provider <name> --ratio <ratio> --theme <name> --out <path> --quality <q> --yolo`:
+Recognize flags in invocations like `/proofsheet:image <prompt> --provider <name> --ratio <ratio> --theme <name> --out <path> --quality <q> --yolo`:
 - `--provider <name>` — pick the backend: `gemini` (default, Nano Banana / Gemini 2.5 Flash Image) or `openai` (gpt-image-1). Each has different strengths; see "Picking a provider" below.
 - `--ratio <ratio>` — pre-pick aspect ratio (16:9, 4:3, 1:1, 3:2, 9:16, 2:3, 21:9). Skip the ratio recommendation step. Note: OpenAI only supports three discrete sizes (1024×1024, 1024×1536, 1536×1024), so the requested ratio maps to the nearest match; unknown ratios fall through to "auto".
-- `--theme <name>` — resolve `themes/<name>.md` and inject its body fragment into every direction's enrichment. If the theme doesn't exist, halt with: "Theme `<name>` not found in `themes/`. Run `/themes` to see available themes or `/new-theme` to create one."
+- `--theme <name>` — resolve `themes/<name>.md` and inject its body fragment into every direction's enrichment. If the theme doesn't exist, halt with: "Theme `<name>` not found in `themes/`. Run `/proofsheet:themes` to see available themes or `/proofsheet:new-theme` to create one."
 - `--quality <q>` — OpenAI only. One of `auto` (default), `low`, `medium`, `high`. Higher quality produces sharper text and finer detail but costs more (~$0.04 standard, ~$0.17 high at 1024×1024). Ignored for Gemini.
 - `--out <path>` — override save location. Default is `./generated/_images/<slug>-<YYYYMMDD-HHMMSS>.png` (relative to user's cwd).
 - `--yolo` — skip the proposal step entirely; pick the strongest single direction internally and dispatch immediately.
@@ -126,7 +126,7 @@ Direct (running inside this plugin's repo): drop the `$env:CLAUDE_PLUGIN_ROOT/` 
 
 **Output path defaults**: `./generated/_images/<slug>-<YYYYMMDD-HHMMSS>.png` (relative to user's cwd, not the plugin install dir) where `<slug>` is the first 3–4 alphanumeric words of the user's original prompt, kebab-cased and lowercased. Example: prompt "fisherman on a dock at dawn" → `./generated/_images/fisherman-on-a-20260502-143055.png`. The directory is created automatically by the script.
 
-The script writes a sidecar JSON to `<dir>/.meta/<basename>.json` automatically containing the prompt, ratio, theme, timestamp, and model — keeping the image directory itself clean. **Always pass `--ratio` and `--theme` flags when relevant** so the sidecar is complete — that's what makes future `/refine` calls precise.
+The script writes a sidecar JSON to `<dir>/.meta/<basename>.json` automatically containing the prompt, ratio, theme, timestamp, and model — keeping the image directory itself clean. **Always pass `--ratio` and `--theme` flags when relevant** so the sidecar is complete — that's what makes future `/proofsheet:refine` calls precise.
 
 **Quote handling**: the prompt may contain double quotes, backticks, or `$`. In PowerShell, use a single-quoted here-string (`@'...'@`) to pass the prompt safely — the closing `'@` must be at column 0. In bash, double-quote and backslash-escape any literal `"` or `` ` ``.
 
@@ -138,7 +138,7 @@ After dispatch, print:
 - File size
 - The exact prompt that was sent (so the user can copy it for tweaks)
 
-Then offer one of: "regenerate with a tweak?", "try direction 2?", "refine this image directly via `/refine`?", or "done." Don't auto-loop — wait for user direction.
+Then offer one of: "regenerate with a tweak?", "try direction 2?", "refine this image directly via `/proofsheet:refine`?", or "done." Don't auto-loop — wait for user direction.
 
 ## Prompt-enrichment recipe
 
@@ -200,9 +200,9 @@ Default by use-case if the user didn't specify:
 - Don't bake brand names or trademarked subjects into prompts ("an Apple Store interior", "Nike Air Force 1s"). The negative cues are not optional — they protect against generating something the user can't actually use.
 - Don't default to 16:9. Match the ratio to the composition or the use-case.
 - Don't auto-retry on failure. Surface the error and ask. Quota/billing errors mean the API key needs attention, not another attempt.
-- Don't skip `--theme` or `--ratio` flags when dispatching — they go into the sidecar and make `/refine` work properly later.
+- Don't skip `--theme` or `--ratio` flags when dispatching — they go into the sidecar and make `/proofsheet:refine` work properly later.
 - Don't stack adjectives. "Beautiful stunning amazing" is noise, not direction.
 
 ## What success looks like
 
-The user describes a vague idea; you return three meaningfully different art-directed takes; they pick one; the saved image looks like deliberate art direction, not stock filler. The sidecar JSON next to the PNG captures the prompt so they can refine it months later via `/refine`.
+The user describes a vague idea; you return three meaningfully different art-directed takes; they pick one; the saved image looks like deliberate art direction, not stock filler. The sidecar JSON next to the PNG captures the prompt so they can refine it months later via `/proofsheet:refine`.

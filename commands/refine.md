@@ -8,12 +8,12 @@ The skill asks which one you want, then dispatches.
 
 ## Usage
 
-- `/refine <path>` — interactive. Reads the image's sidecar at `<dir>/.meta/<basename>.json` (if present), shows you the original prompt and provider, asks tweak-or-edit.
-- `/refine <path> tweak` — pre-pick mode 1 (prompt tweak + regenerate).
-- `/refine <path> edit` — pre-pick mode 2 (image-to-image edit).
-- `/refine <path> --provider <name>` — override the provider (`gemini` or `openai`). Defaults to whichever the original image was generated with (from the sidecar).
-- `/refine <path> --quality <q>` — OpenAI only. Override quality tier on the refinement.
-- `/refine <path> --out <new-path>` — override save location. Default avoids overwriting the original.
+- `/proofsheet:refine <path>` — interactive. Reads the image's sidecar at `<dir>/.meta/<basename>.json` (if present), shows you the original prompt and provider, asks tweak-or-edit.
+- `/proofsheet:refine <path> tweak` — pre-pick mode 1 (prompt tweak + regenerate).
+- `/proofsheet:refine <path> edit` — pre-pick mode 2 (image-to-image edit).
+- `/proofsheet:refine <path> --provider <name>` — override the provider (`gemini` or `openai`). Defaults to whichever the original image was generated with (from the sidecar).
+- `/proofsheet:refine <path> --quality <q>` — OpenAI only. Override quality tier on the refinement.
+- `/proofsheet:refine <path> --out <new-path>` — override save location. Default avoids overwriting the original.
 
 Examples:
 

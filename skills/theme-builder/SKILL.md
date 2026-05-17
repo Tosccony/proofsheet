@@ -1,28 +1,28 @@
 ---
 name: theme-builder
-description: Interactively help a user compose a reusable image theme — a saved aesthetic that injects into future /image calls via the --theme flag. Walks them through medium, lighting, palette, composition, references, and what-to-avoid, optionally generates 1–2 test images to validate the theme, then saves it to themes/<slug>.md. Use when the user wants to create, design, build, or define their own image style. Triggers include "make a theme", "I want to build a style for my blog images", "design a theme for our brand", "create a look", or invoking `/new-theme`.
+description: Interactively help a user compose a reusable image theme — a saved aesthetic that injects into future /proofsheet:image calls via the --theme flag. Walks them through medium, lighting, palette, composition, references, and what-to-avoid, optionally generates 1–2 test images to validate the theme, then saves it to themes/<slug>.md. Use when the user wants to create, design, build, or define their own image style. Triggers include "make a theme", "I want to build a style for my blog images", "design a theme for our brand", "create a look", or invoking `/proofsheet:new-theme`.
 ---
 
 # Theme Builder
 
-The recipe for taking a user's vague aesthetic instinct ("I want my blog images to feel like 70s film photography") and turning it into a saved, reusable theme file. The output is a `themes/<slug>.md` file with a frontmatter header and a prompt fragment that the `image-generation` skill weaves into every future `/image` call.
+The recipe for taking a user's vague aesthetic instinct ("I want my blog images to feel like 70s film photography") and turning it into a saved, reusable theme file. The output is a `themes/<slug>.md` file with a frontmatter header and a prompt fragment that the `image-generation` skill weaves into every future `/proofsheet:image` call.
 
 A good theme is the difference between getting 5 cohesive blog headers across a series and getting 5 random images that happen to share a subject.
 
 ## When to use
 
 - User says "I want to build a theme", "create a style", "make a look", "compose an aesthetic", "set up a visual identity for my images".
-- They invoke `/new-theme`.
+- They invoke `/proofsheet:new-theme`.
 - They've been generating images and notice they want a consistent style they can reuse.
 
-Don't use for: a single one-off image (use `/image`), refining an existing image (use `/refine`), or editing an already-saved theme (just edit the file in `themes/` directly — themes are plain markdown).
+Don't use for: a single one-off image (use `/proofsheet:image`), refining an existing image (use `/proofsheet:refine`), or editing an already-saved theme (just edit the file in `themes/` directly — themes are plain markdown).
 
 ## First-run check (do this before anything else)
 
 Check the onboarded marker at `$env:USERPROFILE\.proofsheet\onboarded` (Windows) or `~/.proofsheet/onboarded` (Unix), plus API keys. Branch per the table in the `proofsheet-onboarding` skill:
 
-- Marker missing + keys missing → strong nudge to run `/welcome`, do not proceed.
-- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/welcome`, or `skip` to start building your theme. I'll only ask once."
+- Marker missing + keys missing → strong nudge to run `/proofsheet:welcome`, do not proceed.
+- Marker missing + keys set → soft prompt: "First time using proofsheet? Type `tour` for `/proofsheet:welcome`, or `skip` to start building your theme. I'll only ask once."
 - Marker exists → just proceed (any test-image dispatch later in the flow handles the per-provider key check separately).
 
 ## The flow
@@ -97,11 +97,11 @@ Synthesize their answers into a `themes/<slug>.md` draft:
 ```markdown
 ---
 name: <slug>
-description: <one-line summary of the aesthetic — appears in /themes listing>
+description: <one-line summary of the aesthetic — appears in /proofsheet:themes listing>
 best-for: <use cases, comma-separated: blog headers, editorial photography>
 ---
 
-<prompt fragment — 2–4 sentences of concrete art direction that gets injected into every /image call using this theme>
+<prompt fragment — 2–4 sentences of concrete art direction that gets injected into every /proofsheet:image call using this theme>
 ```
 
 The body is the meat. Write it as a fragment that fits naturally into a larger prompt — not a complete prompt itself. Example body:
@@ -128,7 +128,7 @@ If `themes/` doesn't exist in the user's cwd, create it.
 
 Print:
 - Saved path
-- One-line confirmation of how to use it: `Use it via /image <prompt> --theme <slug>`
+- One-line confirmation of how to use it: `Use it via /proofsheet:image <prompt> --theme <slug>`
 - A note that they can edit the file directly anytime in `themes/<slug>.md`.
 
 ## What makes a good theme body
@@ -142,7 +142,7 @@ The body is a prompt fragment, 2–4 sentences. It should:
 - **Include theme-specific negative cues.** "No glossy CGI, no high-saturation primaries, no text overlays" — whatever's hostile to this aesthetic.
 
 The body should **not**:
-- Include a subject (themes are subject-agnostic — `/image` provides the subject).
+- Include a subject (themes are subject-agnostic — `/proofsheet:image` provides the subject).
 - Include an aspect ratio (that's per-image).
 - Be longer than ~4 sentences (themes should ride alongside the prompt, not dominate it).
 
@@ -161,4 +161,4 @@ If the user wants to refine a theme that already exists, they can just edit the 
 
 ## What success looks like
 
-The user starts with a vague instinct, gets walked through 5–8 questions, sees a theme body that captures what they meant, optionally validates it with a test image, and ends with a saved file they can use across every future `/image` call. Six months later, they generate a new blog header with `--theme my-blog-style` and it lands looking cohesive with the dozen previous headers.
+The user starts with a vague instinct, gets walked through 5–8 questions, sees a theme body that captures what they meant, optionally validates it with a test image, and ends with a saved file they can use across every future `/proofsheet:image` call. Six months later, they generate a new blog header with `--theme my-blog-style` and it lands looking cohesive with the dozen previous headers.

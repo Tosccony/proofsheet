@@ -8,11 +8,11 @@ The name comes from the photographer's contact sheet, the grid of options you pi
 
 | Command | What it does |
 |---------|-------------|
-| `/welcome` | First-run tutorial. Walks you through what proofsheet does, checks your API keys, demos each command, and offers a free dry-run. Run this once after installing. |
-| `/image <prompt>` | Generate a new image. Takes a free-form description, proposes 2 to 3 art-directed takes with suggested aspect ratios, and dispatches the chosen one. |
-| `/refine <path>` | Refine an existing image. Either tweak the original prompt and regenerate fresh, or do an image-to-image edit (warm the lighting, remove an element, fix a color cast). |
-| `/new-theme` | Interactively build a reusable aesthetic. Walks you through medium, palette, composition, references, and what to avoid, then saves a `themes/<slug>.md` file usable in any future `/image` call. |
-| `/themes` | List available themes. Shows the 9 seeded ones plus any custom themes you have built. |
+| `/proofsheet:welcome` | First-run tutorial. Walks you through what proofsheet does, checks your API keys, demos each command, and offers a free dry-run. Run this once after installing. |
+| `/proofsheet:image <prompt>` | Generate a new image. Takes a free-form description, proposes 2 to 3 art-directed takes with suggested aspect ratios, and dispatches the chosen one. |
+| `/proofsheet:refine <path>` | Refine an existing image. Either tweak the original prompt and regenerate fresh, or do an image-to-image edit (warm the lighting, remove an element, fix a color cast). |
+| `/proofsheet:new-theme` | Interactively build a reusable aesthetic. Walks you through medium, palette, composition, references, and what to avoid, then saves a `themes/<slug>.md` file usable in any future `/proofsheet:image` call. |
+| `/proofsheet:themes` | List available themes. Shows the 9 seeded ones plus any custom themes you have built. |
 
 Every generated image gets a sidecar JSON written to a `.meta/` subfolder of the output directory. The sidecar holds the prompt, aspect ratio, theme, and timestamp, so any image is refinable months later even if the chat history is long gone.
 
@@ -31,7 +31,7 @@ The `image-generation` skill bakes in rules like:
 
 ## Seeded themes
 
-Nine starter themes ship with the plugin. Use any of them via `/image <prompt> --theme <slug>`.
+Nine starter themes ship with the plugin. Use any of them via `/proofsheet:image <prompt> --theme <slug>`.
 
 | Theme | Aesthetic | Best for |
 |-------|-----------|----------|
@@ -45,18 +45,18 @@ Nine starter themes ship with the plugin. Use any of them via `/image <prompt> -
 | `corporate-clean` | Bright even lighting, neutral palette, no drama. | Business decks, LinkedIn banners. |
 | `portfolio-gouache` | Hand-painted gouache in the Maira Kalman observational style. | Personal portfolios, intimate editorial. |
 
-Build your own with `/new-theme`. Themes live in `themes/<slug>.md` as plain markdown, so you can edit them by hand anytime.
+Build your own with `/proofsheet:new-theme`. Themes live in `themes/<slug>.md` as plain markdown, so you can edit them by hand anytime.
 
 ## Refining works months later
 
-Every generation writes a sidecar JSON containing the original prompt and any flags used. A year from now you can run `/refine ./old-blog-header.png` and the skill reads the sidecar, shows you what was generated, and asks how to refine.
+Every generation writes a sidecar JSON containing the original prompt and any flags used. A year from now you can run `/proofsheet:refine ./old-blog-header.png` and the skill reads the sidecar, shows you what was generated, and asks how to refine.
 
 There are two refinement modes:
 
 1. **Prompt tweak.** Edit one clause of the original prompt and generate a fresh image. Best for direction changes like "same idea but at golden hour" or "swap the medium to risograph." Produces a new image; subject identity will not carry over.
 2. **Image-to-image.** Pass the existing image plus a short edit instruction to Gemini, get back a modified version. Best for surgical fixes like "warmer lighting" or "remove the dock railing." Keeps the same composition, edits in place.
 
-If you point `/refine` at a foreign image with no sidecar, only image-to-image mode is available.
+If you point `/proofsheet:refine` at a foreign image with no sidecar, only image-to-image mode is available.
 
 ## Two providers
 
@@ -91,45 +91,35 @@ Get a Gemini key at https://aistudio.google.com/apikey. On Windows PowerShell:
 
 Restart your terminal after setting.
 
-After install, run `/welcome` in Claude Code for a guided walkthrough of every command, including a (free, optional) live test.
+After install, run `/proofsheet:welcome` in Claude Code for a guided walkthrough of every command, including a (free, optional) live test.
 
 ## Install
 
-Three install paths depending on how you use Claude Code.
+Two install paths depending on whether you want the published version or a local checkout for hacking.
 
-### Option A: install via Claude Code's plugin system (recommended)
+### Option A: install from GitHub (recommended)
 
-From any project where you want proofsheet available:
+From any project where you want proofsheet available, inside Claude Code:
 
 ```
 /plugin marketplace add https://github.com/Tosccony/proofsheet
 /plugin install proofsheet
 ```
 
-That's it. No `npm install`, no clone, no build step. The compiled JS scripts are committed to the repo and run on plain Node 18+. After install, run `/welcome` for a guided tour, or jump straight to `/image`, `/refine`, `/new-theme`, or `/themes`.
+That's it. No `npm install`, no clone, no build step. The compiled JS scripts are committed to the repo and run on plain Node 18+. After install, run `/proofsheet:welcome` for a guided tour, or jump straight to `/proofsheet:image`, `/proofsheet:refine`, `/proofsheet:new-theme`, or `/proofsheet:themes`.
 
-### Option B: open this repo directly in Claude Code
+Note: Claude Code namespaces plugin slash commands as `/<plugin-name>:<command>`. So what looks like `/image` in this README is actually invoked as `/proofsheet:image`. Tab-complete with `/proof` to see them all.
 
-If you want to hack on proofsheet itself or use it inside its own directory:
+### Option B: install from a local checkout (for development)
 
-```powershell
-git clone https://github.com/Tosccony/proofsheet.git
-cd proofsheet
-claude .
-```
-
-No `npm install` needed for runtime. If you want to rebuild from source (after editing TS files in `src/`), run `npm install` then `npm run build`.
-
-### Option C: install as a plugin source pointed at a local checkout
-
-Useful for plugin development against a local copy:
+Useful when you're hacking on proofsheet itself:
 
 ```
 /plugin marketplace add /absolute/path/to/proofsheet
 /plugin install proofsheet
 ```
 
-Claude Code sets `$env:CLAUDE_PLUGIN_ROOT` to your local path and the skills resolve scripts and seeded themes against it.
+Claude Code sets `$env:CLAUDE_PLUGIN_ROOT` to your local path and the skills resolve scripts and seeded themes against it. If you edit TS files in `src/`, run `npm install && npm run build` once to regenerate `bin/`.
 
 ## Using the CLI directly
 
@@ -149,7 +139,7 @@ node bin/openai-image.js "a single white tulip on raw linen, soft window light, 
 node bin/openai-image.js "Warm the lighting to a golden afternoon tone. Keep composition unchanged." "out-openai-edit.png" --input "out-openai.png"
 ```
 
-Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provider` field, so `/refine` later knows which backend to use.
+Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provider` field, so `/proofsheet:refine` later knows which backend to use.
 
 ## File layout
 
@@ -158,18 +148,17 @@ proofsheet/
   .claude-plugin/
     plugin.json          (plugin manifest)
     marketplace.json     (single-plugin marketplace listing)
-  .claude/
-    skills/
-      image-generation/SKILL.md
-      image-refinement/SKILL.md
-      theme-builder/SKILL.md
-      proofsheet-onboarding/SKILL.md
-    commands/
-      welcome.md
-      image.md
-      refine.md
-      new-theme.md
-      themes.md
+  skills/
+    image-generation/SKILL.md
+    image-refinement/SKILL.md
+    theme-builder/SKILL.md
+    proofsheet-onboarding/SKILL.md
+  commands/
+    welcome.md
+    image.md
+    refine.md
+    new-theme.md
+    themes.md
   src/                   (TypeScript source, dev-time only)
     gemini-image.ts
     openai-image.ts
@@ -184,7 +173,9 @@ proofsheet/
   tsconfig.json
 ```
 
-Custom themes built via `/new-theme` are saved to `./themes/` in the user's current working directory rather than the plugin install dir, so themes travel with whatever project the images are for.
+Note: plugin commands and skills live at the *plugin root* (`commands/` and `skills/`), not under `.claude/`. The `.claude/` convention is for personal/project workspaces — `claude .` in a project directory. When proofsheet is installed via `/plugin install`, Claude Code looks for top-level `commands/` and `skills/`.
+
+Custom themes built via `/proofsheet:new-theme` are saved to `./themes/` in the user's current working directory rather than the plugin install dir, so themes travel with whatever project the images are for.
 
 ## License
 

@@ -1,6 +1,6 @@
 {
   "name": "proofsheet",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Image generation, refinement, and reusable themes for blog posts, slides, newsletters, and anything else needing a real image. Backed by either Nano Banana (Gemini 2.5 Flash Image) or OpenAI (gpt-image-1), with provider picked per call. Includes /welcome onboarding, interactive art direction (/image), surgical refinement of existing images (/refine), and a custom theme builder (/new-theme).",
   "author": {
     "name": "Tosccony",

@@ -1,6 +1,6 @@
 ---
 name: proofsheet-onboarding
-description: First-run tutorial for the proofsheet plugin. Walks a new user through what proofsheet does, checks which API keys are set, helps set up any missing ones, demos each command with one-line explanations, and offers a free dry-run before any actual paid image is dispatched. Triggers include invoking `/welcome`, asking "how do I use this", "what does proofsheet do", "how do I get started", "I just installed this", or when other skills detect missing API keys on a first invocation.
+description: First-run tutorial for the proofsheet plugin. Walks a new user through what proofsheet does, checks which API keys are set, helps set up any missing ones, demos each command with one-line explanations, and offers a free dry-run before any actual paid image is dispatched. Triggers include invoking `/proofsheet:welcome`, asking "how do I use this", "what does proofsheet do", "how do I get started", "I just installed this", or when other skills detect missing API keys on a first invocation.
 ---
 
 # Proofsheet Onboarding
@@ -9,11 +9,11 @@ The first-run experience. Run on every fresh install since most users skip the R
 
 ## When to use
 
-- The user invokes `/welcome` directly.
+- The user invokes `/proofsheet:welcome` directly.
 - The user asks "how do I use this", "what does proofsheet do", "how do I get started", "I just installed this".
-- Another skill detects that no API keys are set and the user appears to be a first-time user (offer `/welcome` in the error message instead of just halting).
+- Another skill detects that no API keys are set and the user appears to be a first-time user (offer `/proofsheet:welcome` in the error message instead of just halting).
 
-Don't use for: experienced users who already know the commands and just want to generate an image (they should go straight to `/image`).
+Don't use for: experienced users who already know the commands and just want to generate an image (they should go straight to `/proofsheet:image`).
 
 ## The walkthrough
 
@@ -62,16 +62,16 @@ A short table or list, one line each:
 
 > Here's what you can do:
 >
-> * `/image <prompt>` — generate a new image from a description. The skill proposes 2–3 art-directed takes, you pick one. Optional flags: `--provider gemini|openai`, `--theme <name>`, `--ratio <16:9|4:3|1:1|...>`, `--quality auto|low|medium|high` (OpenAI only).
-> * `/refine <path>` — refine an existing image. Either tweak the original prompt and regenerate fresh (for direction changes), or do an image-to-image edit (for surgical fixes like "warmer lighting"). Works even months later because every image carries a sidecar JSON.
-> * `/new-theme` — interactively build a reusable aesthetic. The skill walks you through medium, palette, composition, references, what to avoid, then saves a `themes/<slug>.md` file you can use forever via `/image <prompt> --theme <slug>`.
-> * `/themes` — list all available themes (9 seeded plus any you've built).
+> * `/proofsheet:image <prompt>` — generate a new image from a description. The skill proposes 2–3 art-directed takes, you pick one. Optional flags: `--provider gemini|openai`, `--theme <name>`, `--ratio <16:9|4:3|1:1|...>`, `--quality auto|low|medium|high` (OpenAI only).
+> * `/proofsheet:refine <path>` — refine an existing image. Either tweak the original prompt and regenerate fresh (for direction changes), or do an image-to-image edit (for surgical fixes like "warmer lighting"). Works even months later because every image carries a sidecar JSON.
+> * `/proofsheet:new-theme` — interactively build a reusable aesthetic. The skill walks you through medium, palette, composition, references, what to avoid, then saves a `themes/<slug>.md` file you can use forever via `/proofsheet:image <prompt> --theme <slug>`.
+> * `/proofsheet:themes` — list all available themes (9 seeded plus any you've built).
 
 ### Step 4: The sidecar metadata system
 
 Briefly explain:
 
-> Every generated image writes a sidecar JSON to a `.meta/` subfolder next to it. The sidecar holds the prompt, ratio, theme, provider, and timestamp. So `/refine` works on any image you've ever generated, even from a year ago — you don't need the chat history. Sidecars are plain JSON, you can read or edit them by hand.
+> Every generated image writes a sidecar JSON to a `.meta/` subfolder next to it. The sidecar holds the prompt, ratio, theme, provider, and timestamp. So `/proofsheet:refine` works on any image you've ever generated, even from a year ago — you don't need the chat history. Sidecars are plain JSON, you can read or edit them by hand.
 
 ### Step 5: Offer a free dry-run
 
@@ -107,16 +107,16 @@ Then sign off:
 
 > You're set up. From here:
 >
-> * Type `/image <prompt>` to make something
-> * Type `/refine <path-to-png>` to fix an existing image
-> * Type `/new-theme` to build a reusable style
-> * Type `/welcome` again anytime to re-run this tour
+> * Type `/proofsheet:image <prompt>` to make something
+> * Type `/proofsheet:refine <path-to-png>` to fix an existing image
+> * Type `/proofsheet:new-theme` to build a reusable style
+> * Type `/proofsheet:welcome` again anytime to re-run this tour
 >
 > Themes you build are saved to `./themes/` in whatever directory Claude Code is open in, so they travel with the project.
 
-The marker file means the other skills will stop auto-suggesting `/welcome` from now on. Delete it (`~/.proofsheet/onboarded`) if you ever want to retrigger the tour for someone else on this machine.
+The marker file means the other skills will stop auto-suggesting `/proofsheet:welcome` from now on. Delete it (`~/.proofsheet/onboarded`) if you ever want to retrigger the tour for someone else on this machine.
 
-## When to surface /welcome from other skills
+## When to surface /proofsheet:welcome from other skills
 
 The `image-generation`, `image-refinement`, and `theme-builder` skills should check two signals before doing anything:
 
@@ -127,10 +127,10 @@ The four resulting cases:
 
 | Marker | Keys | What the skill does |
 |---|---|---|
-| Missing | Missing | Strong nudge: "Looks like first time using proofsheet. Type `tour` to run `/welcome`, or get an API key first (see https://aistudio.google.com/apikey or https://platform.openai.com/api-keys)." Do not proceed with the user's task. |
+| Missing | Missing | Strong nudge: "Looks like first time using proofsheet. Type `tour` to run `/proofsheet:welcome`, or get an API key first (see https://aistudio.google.com/apikey or https://platform.openai.com/api-keys)." Do not proceed with the user's task. |
 | Missing | Set | Soft prompt before proceeding: "First time using proofsheet? Type `tour` for a quick 3-minute walkthrough, or `skip` to dispatch your request. Either way, I'll only ask once." Then proceed based on their answer. |
-| Exists | Missing | Standard key-missing halt with setup instructions. Don't re-suggest `/welcome` since they've already been through it. |
-| Exists | Set | No mention of `/welcome`. Just do the work. |
+| Exists | Missing | Standard key-missing halt with setup instructions. Don't re-suggest `/proofsheet:welcome` since they've already been through it. |
+| Exists | Set | No mention of `/proofsheet:welcome`. Just do the work. |
 
 The marker is the *one-time gate*; the key check is the *blocker*. They're independent signals.
 
@@ -146,4 +146,4 @@ Check the marker via Bash `test -f ~/.proofsheet/onboarded` or PowerShell `Test-
 
 ## What success looks like
 
-After a 3-minute `/welcome` flow, the user knows what proofsheet does, has at least one working API key, understands the four content commands, understands the sidecar system, and has either run a dry-run or knows exactly what to type next. They're ready to use the tool without re-reading the README.
+After a 3-minute `/proofsheet:welcome` flow, the user knows what proofsheet does, has at least one working API key, understands the four content commands, understands the sidecar system, and has either run a dry-run or knows exactly what to type next. They're ready to use the tool without re-reading the README.
