@@ -63,7 +63,46 @@ Restart Claude desktop. The four proofsheet tools show up under the available to
 
 ### ChatGPT desktop
 
-ChatGPT desktop supports custom MCP connectors via the developer feature (requires Plus or Pro). Add a connector with command `npx` and args `-y proofsheet`, plus the same `GEMINI_API_KEY` and `OPENAI_API_KEY` env vars.
+ChatGPT desktop's MCP support is newer than Claude's and `proofsheet init` cannot auto-configure it because ChatGPT doesn't expose a config file to patch. You'll add proofsheet through the app's settings UI.
+
+**Requirements:**
+
+- ChatGPT **Plus** or **Pro** subscription (custom MCP connectors are not available on the Free tier)
+- ChatGPT desktop with **Developer mode** / **Custom connectors** feature enabled
+
+**Steps:**
+
+1. **Open ChatGPT desktop → Settings.**
+2. **Enable developer mode** if it isn't already on. Look under "General", "Beta features", or "Advanced" — the exact location depends on your ChatGPT desktop version. You're looking for a "Developer mode" or "Custom connectors" toggle.
+3. **Open the Connectors section** (sometimes labeled "Apps", "Integrations", or "MCP Servers"). Click **Add custom connector** or the "+" button.
+4. **Fill in the connector form** with these values:
+
+   | Field | Value |
+   |---|---|
+   | Name | `proofsheet` |
+   | Command | `npx` |
+   | Arguments | `-y proofsheet` |
+   | Environment variables | `GEMINI_API_KEY=<your key>` and/or `OPENAI_API_KEY=<your key>` |
+
+   If ChatGPT's form expects JSON instead of separate fields, use this:
+
+   ```json
+   {
+     "command": "npx",
+     "args": ["-y", "proofsheet"],
+     "env": {
+       "GEMINI_API_KEY": "your-gemini-key",
+       "OPENAI_API_KEY": "your-openai-key"
+     }
+   }
+   ```
+
+5. **Save and restart ChatGPT desktop.**
+6. **Verify** by asking in a new chat: *"Use proofsheet to generate an image of a coffee mug on a wooden table, editorial-photography theme."* ChatGPT should call the `generate_image` tool and render the image inline.
+
+**ChatGPT desktop's MCP UI changes between releases.** If the labels above don't match what you see, the general flow is the same: find the connectors / integrations section, add a custom one, give it the same command + args + env. If you can't find anywhere to add a custom connector, your version probably doesn't have the feature yet — wait for an app update or use Claude desktop in the meantime.
+
+**For ChatGPT on iPad/iPhone**, the local-subprocess setup above won't work — those clients can't run `npx`. The path for cross-device ChatGPT is to host proofsheet as an HTTP MCP server reachable over the internet, then point ChatGPT's connector at the HTTPS URL. See [`deploy/`](https://github.com/Tosccony/proofsheet/tree/main/deploy) for the full walkthrough (Tailscale, Caddy + bearer token, or Cloudflare Tunnel).
 
 ### Claude Code (CLI)
 
