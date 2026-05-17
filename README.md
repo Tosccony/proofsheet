@@ -1,181 +1,210 @@
 # proofsheet
 
-A Claude Code plugin for generating, refining, and theming images. Backed by either **Nano Banana** (Gemini 2.5 Flash Image) or **OpenAI** (gpt-image-1), with the same skill workflow on top of both. Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
+An MCP server for image generation, refinement, and reusable themes. Backed by either **Nano Banana** (Gemini 2.5 Flash Image) or **OpenAI** (gpt-image-1), with provider picked per call. Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
+
+Because proofsheet speaks the Model Context Protocol, it works in **Claude desktop, ChatGPT desktop, Claude Code, Codex, Cursor, Cline**, and any other MCP-compatible client. One server, many homes.
 
 The name comes from the photographer's contact sheet, the grid of options you pick from before printing the keeper.
 
-## What it does
+## What you get
 
-| Command | What it does |
-|---------|-------------|
-| `/proofsheet:welcome` | First-run tutorial. Walks you through what proofsheet does, checks your API keys, demos each command, and offers a free dry-run. Run this once after installing. |
-| `/proofsheet:image <prompt>` | Generate a new image. Takes a free-form description, proposes 2 to 3 art-directed takes with suggested aspect ratios, and dispatches the chosen one. |
-| `/proofsheet:refine <path>` | Refine an existing image. Either tweak the original prompt and regenerate fresh, or do an image-to-image edit (warm the lighting, remove an element, fix a color cast). |
-| `/proofsheet:new-theme` | Interactively build a reusable aesthetic. Walks you through medium, palette, composition, references, and what to avoid, then saves a `themes/<slug>.md` file usable in any future `/proofsheet:image` call. |
-| `/proofsheet:themes` | List available themes. Shows the 9 seeded ones plus any custom themes you have built. |
+| Tool | What it does |
+|---|---|
+| `generate_image` | Turn a free-form prompt into an image. Returns the PNG inline so the client renders it in chat, plus writes to disk with sidecar metadata. |
+| `refine_image` | Either tweak the original prompt and regenerate (`mode: "tweak"`) or do an image-to-image edit (`mode: "edit"`). Reads sidecar metadata so refinement works months later. |
+| `list_themes` | Show all available themes shipped with proofsheet. |
+| `read_theme` | Fetch a theme body to weave into a generation prompt. |
 
-Every generated image gets a sidecar JSON written to a `.meta/` subfolder of the output directory. The sidecar holds the prompt, aspect ratio, theme, and timestamp, so any image is refinable months later even if the chat history is long gone.
+| Prompt template | What it does |
+|---|---|
+| `art_direction` | The prompt-enrichment recipe. Tells the model how to turn "an image of a fisherman" into a structured prompt with subject, environment, composition, lighting, medium, texture, mood, and negative cues. Apply before calling `generate_image`. |
+| `refinement_picker` | Decision guide for whether to use `mode: "tweak"` vs `mode: "edit"` on `refine_image`. |
+| `theme_builder` | Guided conversation flow for building a custom theme and saving it as `themes/<slug>.md`. |
 
-## Why prompts get enriched first
+Every generated or refined image gets a sidecar JSON written to `<dir>/.meta/<basename>.json` containing the prompt, ratio, theme, provider, and timestamp. So `refine_image` works on any image you have, even from a year ago, even after the original chat is gone.
 
-Nano Banana follows direction extremely well. A thin prompt produces a thin image. proofsheet's whole value is the art direction work it does before dispatching: turning "an image of a fisherman" into a structured prompt with subject, environment, composition, lighting, medium, texture, mood, negative cues, and aspect ratio.
+## Two providers
 
-The `image-generation` skill bakes in rules like:
+Pick per call via the `provider` argument on `generate_image` or `refine_image`. They have different strengths.
 
-* Medium is the single biggest stylistic lever. Oil painting versus Polaroid snapshot versus risograph print produces three genuinely different images. Adjective swaps produce nearly identical ones.
-* Specificity beats abstraction every time. "A weathered fisherman in a yellow oilskin" gives the model 10x the direction of "a man."
-* Aspect ratio belongs in prose at the very end of the prompt, because Gemini's REST API has no ratio parameter.
-* Counts above three are unreliable. Say "a small handful" instead of "exactly seven."
-* Negative cues prevent typical AI tells (no text overlays, no watermarks, no brand logos, no glossy CGI).
-* Stacking adjectives is noise. Six concrete phrases beat thirty weak qualifiers.
+| | Gemini (Nano Banana) | OpenAI (gpt-image-1) |
+|---|---|---|
+| Aspect ratios | Flexible via prose | Three discrete sizes only: 1024×1024, 1024×1536, 1536×1024 |
+| Strength | Painterly, illustrated, editorial photographic | Legible text in image, tight compositional control, clean product photography |
+| Quality tiers | None | `auto` (default), `low`, `medium`, `high` |
+| Cost per image | About $0.04 | About $0.04 standard, up to about $0.17 high quality |
+| API auth | `GEMINI_API_KEY` | `OPENAI_API_KEY` (ChatGPT subscription does **not** cover API) |
+
+Default is `gemini`. Set neither key and the corresponding provider just isn't available. Set both and you can switch per call.
 
 ## Seeded themes
 
-Nine starter themes ship with the plugin. Use any of them via `/proofsheet:image <prompt> --theme <slug>`.
+Nine themes ship with proofsheet. Use any via the `theme` argument: `generate_image(prompt: "...", theme: "editorial-photography")`.
 
 | Theme | Aesthetic | Best for |
-|-------|-----------|----------|
+|---|---|---|
 | `editorial-photography` | Medium-format film, soft window light, muted earth tones. | Blog headers, editorial. |
 | `risograph-print` | Two-color screen print, slight registration offset, flat shapes. | Zine art, retro posters. |
 | `moody-cinematic` | Low-key dramatic lighting, deep shadows, anamorphic widescreen feel. | Film stills, dark headers. |
 | `studio-still-life` | Seamless backdrop, controlled softbox, sharp focus. | Product shots, isolated subjects. |
-| `polaroid-snapshot` | Casual SX-70 aesthetic, slightly overexposed, faded color. | Nostalgic personal blog imagery. |
+| `polaroid-snapshot` | Casual SX-70 aesthetic, slightly overexposed, faded color. | Nostalgic personal-blog imagery. |
 | `oil-painting` | Visible brushstrokes, painterly blending, gallery feel. | Editorial illustration, book covers. |
 | `charcoal-sketch` | Loose charcoal lines, smudged shading, paper texture. | Sketchbook visuals, essays. |
 | `corporate-clean` | Bright even lighting, neutral palette, no drama. | Business decks, LinkedIn banners. |
 | `portfolio-gouache` | Hand-painted gouache in the Maira Kalman observational style. | Personal portfolios, intimate editorial. |
 
-Build your own with `/proofsheet:new-theme`. Themes live in `themes/<slug>.md` as plain markdown, so you can edit them by hand anytime.
-
-## Refining works months later
-
-Every generation writes a sidecar JSON containing the original prompt and any flags used. A year from now you can run `/proofsheet:refine ./old-blog-header.png` and the skill reads the sidecar, shows you what was generated, and asks how to refine.
-
-There are two refinement modes:
-
-1. **Prompt tweak.** Edit one clause of the original prompt and generate a fresh image. Best for direction changes like "same idea but at golden hour" or "swap the medium to risograph." Produces a new image; subject identity will not carry over.
-2. **Image-to-image.** Pass the existing image plus a short edit instruction to Gemini, get back a modified version. Best for surgical fixes like "warmer lighting" or "remove the dock railing." Keeps the same composition, edits in place.
-
-If you point `/proofsheet:refine` at a foreign image with no sidecar, only image-to-image mode is available.
-
-## Two providers
-
-You can pick a provider per call via `--provider gemini|openai`. They have different strengths and you'll want both around.
-
-| | Gemini (Nano Banana) | OpenAI (gpt-image-1) |
-|---|---|---|
-| Aspect ratios | Flexible via prose (anything reads, even if model often drifts to square) | Three discrete sizes only: 1024×1024, 1024×1536, 1536×1024 |
-| Strength | Painterly, illustrated, and editorial photographic styles | Legible text-in-image, tight compositional control, very clean product photography |
-| Quality tiers | None | `auto` (default), `low`, `medium`, `high` |
-| Cost per image | About $0.04 | About $0.04 standard, up to about $0.17 high quality |
-| Image-to-image | Yes | Yes |
-| API auth | `GEMINI_API_KEY` | `OPENAI_API_KEY` (subscription does not cover API) |
-
-Default is `gemini`. Set neither key and the corresponding provider just isn't available. Set both and you can switch per call.
+Build your own with the `theme_builder` prompt template. Themes live in `themes/<slug>.md` as plain markdown frontmatter + a body fragment.
 
 ## Setup
 
 You need:
 
-1. **Node 18 or higher** (for built-in `fetch` and `FormData`). No other runtime dependencies; the plugin ships compiled JS so there's no `npm install` step at runtime.
+1. **Node 18 or higher** (for built-in `fetch` and `FormData`).
 2. **At least one API key**:
-   - `GEMINI_API_KEY` with billing enabled on the AI Studio account. Nano Banana has no free tier (roughly $0.04 per image).
-   - `OPENAI_API_KEY` from https://platform.openai.com/api-keys. Pay-per-image, separate from any ChatGPT subscription you may have.
+   - `GEMINI_API_KEY` with billing enabled on the AI Studio account.
+   - `OPENAI_API_KEY` from https://platform.openai.com/api-keys. Pay-per-image, separate from any ChatGPT subscription.
 
-Get a Gemini key at https://aistudio.google.com/apikey. On Windows PowerShell:
+On Windows PowerShell:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'YOUR-KEY', 'User')
 [System.Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'YOUR-KEY', 'User')
 ```
 
-Restart your terminal after setting.
+On macOS / Linux:
 
-After install, run `/proofsheet:welcome` in Claude Code for a guided walkthrough of every command, including a (free, optional) live test.
-
-## Install
-
-Two install paths depending on whether you want the published version or a local checkout for hacking.
-
-### Option A: install from GitHub (recommended)
-
-From any project where you want proofsheet available, inside Claude Code:
-
-```
-/plugin marketplace add https://github.com/Tosccony/proofsheet
-/plugin install proofsheet
+```bash
+echo 'export GEMINI_API_KEY="..."' >> ~/.zshrc
+echo 'export OPENAI_API_KEY="..."' >> ~/.zshrc
 ```
 
-That's it. No `npm install`, no clone, no build step. The compiled JS scripts are committed to the repo and run on plain Node 18+. After install, run `/proofsheet:welcome` for a guided tour, or jump straight to `/proofsheet:image`, `/proofsheet:refine`, `/proofsheet:new-theme`, or `/proofsheet:themes`.
+Restart your terminal after setting. The proofsheet server reads keys from the environment of whatever process launches it.
 
-Note: Claude Code namespaces plugin slash commands as `/<plugin-name>:<command>`. So what looks like `/image` in this README is actually invoked as `/proofsheet:image`. Tab-complete with `/proof` to see them all.
+## Install (local)
 
-### Option B: install from a local checkout (for development)
+Clone the repo and you're done. The `bin/mcp-server.js` ships precompiled and bundled with all dependencies, so there is no `npm install` needed to run it.
 
-Useful when you're hacking on proofsheet itself:
-
+```bash
+git clone https://github.com/Tosccony/proofsheet
+cd proofsheet
+node bin/mcp-server.js   # stdio mode, ready for desktop apps to launch
 ```
-/plugin marketplace add /absolute/path/to/proofsheet
-/plugin install proofsheet
+
+If you want to hack on the TypeScript source in `src/`, then you do need to install dev dependencies:
+
+```bash
+npm install
+npm run build   # rebuilds bin/mcp-server.js
 ```
 
-Claude Code sets `$env:CLAUDE_PLUGIN_ROOT` to your local path and the skills resolve scripts and seeded themes against it. If you edit TS files in `src/`, run `npm install && npm run build` once to regenerate `bin/`.
+## Connecting clients
 
-## Using the CLI directly
+### Claude desktop
 
-The scripts behind the skills work on their own if you ever want to bypass Claude Code. There are two parallel scripts with the same shape, one per provider:
+Edit your config file:
 
-```powershell
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```jsonc
+{
+  "mcpServers": {
+    "proofsheet": {
+      "command": "node",
+      "args": ["/absolute/path/to/proofsheet/bin/mcp-server.js"],
+      "env": {
+        "GEMINI_API_KEY": "...",
+        "OPENAI_API_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+Restart Claude desktop. The four tools and three prompt templates show up under the proofsheet server. Ask Claude to "generate an image of X" and it'll call `generate_image` and render the result inline.
+
+### ChatGPT desktop
+
+ChatGPT desktop supports custom MCP connectors via the developer/connectors feature (Plus or Pro required). Add a new connector pointing at the same `mcp-server.js` script. ChatGPT's flow is currently more polished for remote (HTTPS) MCP than local stdio, so you may want to host proofsheet on a server (see [`deploy/`](./deploy/)) for the most reliable ChatGPT desktop integration.
+
+### Claude Code (CLI)
+
+Claude Code reads the same MCP config format as the desktop app. Add proofsheet under `mcpServers` in your Claude Code config (or use the same `claude_desktop_config.json` if shared). After restart, tools become available to invoke in any Claude Code session.
+
+### Codex (CLI)
+
+In `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.proofsheet]
+command = "node"
+args = ["/absolute/path/to/proofsheet/bin/mcp-server.js"]
+
+[mcp_servers.proofsheet.env]
+GEMINI_API_KEY = "..."
+OPENAI_API_KEY = "..."
+```
+
+### Cursor, Cline, and other MCP clients
+
+Same pattern: point them at `node /path/to/proofsheet/bin/mcp-server.js` as the stdio MCP server command. Each client has its own config format; consult their docs for where MCP servers are configured.
+
+## Hosting proofsheet on your own server
+
+For multi-device or remote-MCP-only clients (like ChatGPT desktop on iPad), host proofsheet as an HTTP MCP server on a Linux box. The [`deploy/`](./deploy/) directory has a sample `systemd` unit and a full setup walkthrough including Tailscale, Caddy + bearer token, and Cloudflare Tunnel options.
+
+```bash
+node bin/mcp-server.js --transport http --host 127.0.0.1 --port 3000
+```
+
+The HTTP transport uses MCP's Streamable HTTP protocol. Clients that only speak stdio (most desktop apps currently) can connect to it via `npx mcp-remote https://your-host:port` as a stdio-to-HTTP bridge. See [`deploy/README.md`](./deploy/README.md) for details.
+
+**Critical**: do not expose the HTTP transport to the public internet without auth. API key abuse will rack up real charges. Use Tailscale, a reverse proxy with bearer tokens, or Cloudflare Access.
+
+## Using the CLI directly (without MCP)
+
+The two engine scripts that the MCP server delegates to are also runnable standalone:
+
+```bash
 # Gemini text-to-image
-node bin/gemini-image.js "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays, no watermarks" "out.png" --ratio 4:3
+node bin/gemini-image.js "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays" "out.png" --ratio 4:3
 
-# Gemini image-to-image (refinement)
-node bin/gemini-image.js "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged. No text, no watermarks." "out-refined.png" --input "out.png"
+# Gemini image-to-image refinement
+node bin/gemini-image.js "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged." "out-refined.png" --input "out.png"
 
 # OpenAI text-to-image, high quality
-node bin/openai-image.js "a single white tulip on raw linen, soft window light, 1:1 aspect ratio" "out-openai.png" --ratio 1:1 --quality high
-
-# OpenAI image-to-image
-node bin/openai-image.js "Warm the lighting to a golden afternoon tone. Keep composition unchanged." "out-openai-edit.png" --input "out-openai.png"
+node bin/openai-image.js "a single white tulip on raw linen, 1:1 aspect ratio" "out-openai.png" --ratio 1:1 --quality high
 ```
 
-Each call writes a sidecar to `<dir>/.meta/<basename>.json` including a `provider` field, so `/proofsheet:refine` later knows which backend to use.
+Each call writes a sidecar to `<dir>/.meta/<basename>.json`.
 
 ## File layout
 
 ```
 proofsheet/
-  .claude-plugin/
-    plugin.json          (plugin manifest)
-    marketplace.json     (single-plugin marketplace listing)
-  skills/
-    image-generation/SKILL.md
-    image-refinement/SKILL.md
-    theme-builder/SKILL.md
-    proofsheet-onboarding/SKILL.md
-  commands/
-    welcome.md
-    image.md
-    refine.md
-    new-theme.md
-    themes.md
-  src/                   (TypeScript source, dev-time only)
+  .git/
+  src/                   TypeScript source
+    mcp-server.ts
     gemini-image.ts
     openai-image.ts
-  bin/                   (compiled JavaScript, ships with the plugin)
-    gemini-image.js
-    openai-image.js
-  themes/
-    (9 seeded themes)
+  bin/                   compiled JavaScript, shipped with the repo
+    mcp-server.js        bundled (includes MCP SDK and deps)
+    gemini-image.js      standalone
+    openai-image.js      standalone
+  themes/                seeded themes (markdown frontmatter + body fragments)
+    editorial-photography.md
+    moody-cinematic.md
+    ...
+  deploy/                self-hosting (systemd unit, hosting guide)
+    proofsheet.service
+    README.md
   README.md
   LICENSE
   package.json
   tsconfig.json
 ```
 
-Note: plugin commands and skills live at the *plugin root* (`commands/` and `skills/`), not under `.claude/`. The `.claude/` convention is for personal/project workspaces — `claude .` in a project directory. When proofsheet is installed via `/plugin install`, Claude Code looks for top-level `commands/` and `skills/`.
-
-Custom themes built via `/proofsheet:new-theme` are saved to `./themes/` in the user's current working directory rather than the plugin install dir, so themes travel with whatever project the images are for.
+Generated images go to `./generated/_images/<slug>-<timestamp>.png` in the current working directory of whichever process launches proofsheet. That's typically your project directory, so images travel with your work.
 
 ## License
 

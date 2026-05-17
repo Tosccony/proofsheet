@@ -1,39 +1,171 @@
 /**
  * Direct OpenAI image-generation / image-refinement client.
  *
- * Sibling to src/gemini-image.ts (compiled to bin/gemini-image.js). Calls OpenAI's gpt-image-1 REST API.
+ * Sibling to src/gemini-image.ts. Calls OpenAI's gpt-image-1 REST API.
  * Supports two modes:
  *   1. Text-to-image (default): prompt -> PNG via /v1/images/generations.
  *   2. Image-to-image: prompt + existing image -> modified PNG via /v1/images/edits.
  *
- * On success, writes the PNG and a sidecar JSON to <dir>/.meta/<basename>.json
- * with the same shape as the Gemini script, plus a provider: "openai" field
- * and a quality field if one was set.
+ * Exports `generateOpenAIImage()` for in-process use by the MCP server, plus
+ * a CLI entry point for direct invocation.
  *
- * Usage:
+ * CLI Usage:
  *   node bin/openai-image.js "<prompt>" <output-path>
  *   node bin/openai-image.js "<prompt>" <output-path> --input <existing-image>
  *   node bin/openai-image.js "<prompt>" <output-path> --ratio 1:1 --quality high --theme <name>
- *
- * (Development: tsx src/openai-image.ts ...)
  *
  * Env: OPENAI_API_KEY must be set. Pricing is roughly $0.04 (auto/medium) to
  * $0.17 (high) per 1024x1024 image. The ChatGPT subscription does NOT cover
  * API usage; this is a separate billing line.
  *
  * Aspect ratio note: gpt-image-1 only supports three discrete sizes
- * (1024x1024, 1024x1536, 1536x1024) rather than free-form ratios like Gemini.
- * The --ratio flag maps to the closest available size. Unmapped ratios fall
- * through to "auto" (model decides).
+ * (1024x1024, 1024x1536, 1536x1024). The ratio maps to the closest match.
+ * Unmapped ratios fall through to "auto" (model decides).
  *
  * Exit codes: 0 = success, 1 = error (message on stderr).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-const MODEL = 'gpt-image-1';
+export const OPENAI_MODEL = 'gpt-image-1';
 const GEN_ENDPOINT = 'https://api.openai.com/v1/images/generations';
 const EDIT_ENDPOINT = 'https://api.openai.com/v1/images/edits';
-function parseArgs(argv) {
+export function ratioToOpenAISize(ratio) {
+    if (!ratio)
+        return 'auto';
+    switch (ratio) {
+        case '1:1':
+            return '1024x1024';
+        case '2:3':
+        case '9:16':
+            return '1024x1536';
+        case '3:2':
+        case '4:3':
+        case '16:9':
+        case '21:9':
+            return '1536x1024';
+        default:
+            return 'auto';
+    }
+}
+function guessMimeFromExt(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.png')
+        return 'image/png';
+    if (ext === '.jpg' || ext === '.jpeg')
+        return 'image/jpeg';
+    if (ext === '.webp')
+        return 'image/webp';
+    throw new Error(`Unsupported input image extension for OpenAI edits: ${ext}`);
+}
+async function generateText(input, apiKey, size) {
+    const body = {
+        model: OPENAI_MODEL,
+        prompt: input.prompt,
+        n: 1,
+    };
+    if (size !== 'auto')
+        body.size = size;
+    if (input.quality)
+        body.quality = input.quality;
+    const res = await fetch(GEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+    const json = (await res.json());
+    if (!res.ok || json.error) {
+        throw new Error(json.error?.message ?? `HTTP ${res.status}`);
+    }
+    const b64 = json.data?.[0]?.b64_json;
+    if (!b64) {
+        throw new Error('No image in response');
+    }
+    return Buffer.from(b64, 'base64');
+}
+async function generateEdit(input, apiKey, size) {
+    if (!input.inputPath || !fs.existsSync(input.inputPath)) {
+        throw new Error(`Input image not found: ${input.inputPath}`);
+    }
+    const imageBytes = fs.readFileSync(input.inputPath);
+    const mime = guessMimeFromExt(input.inputPath);
+    const inputBasename = path.basename(input.inputPath);
+    const form = new FormData();
+    form.append('model', OPENAI_MODEL);
+    form.append('image', new Blob([new Uint8Array(imageBytes)], { type: mime }), inputBasename);
+    form.append('prompt', input.prompt);
+    form.append('n', '1');
+    if (size !== 'auto')
+        form.append('size', size);
+    if (input.quality)
+        form.append('quality', input.quality);
+    const res = await fetch(EDIT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: form,
+    });
+    const json = (await res.json());
+    if (!res.ok || json.error) {
+        throw new Error(json.error?.message ?? `HTTP ${res.status}`);
+    }
+    const b64 = json.data?.[0]?.b64_json;
+    if (!b64) {
+        throw new Error('No image in response');
+    }
+    return Buffer.from(b64, 'base64');
+}
+function writeSidecar(outputPath, input, size) {
+    const dir = path.dirname(outputPath);
+    const base = path.basename(outputPath);
+    const metaDir = path.join(dir, '.meta');
+    fs.mkdirSync(metaDir, { recursive: true });
+    const sidecarPath = path.join(metaDir, `${base}.json`);
+    const sidecar = {
+        prompt: input.prompt,
+        provider: 'openai',
+        model: OPENAI_MODEL,
+        timestamp: new Date().toISOString(),
+    };
+    if (input.ratio)
+        sidecar.ratio = input.ratio;
+    if (size !== 'auto')
+        sidecar.size = size;
+    if (input.quality)
+        sidecar.quality = input.quality;
+    if (input.theme)
+        sidecar.theme = input.theme;
+    if (input.inputPath)
+        sidecar.inputPath = path.resolve(input.inputPath);
+    fs.writeFileSync(sidecarPath, JSON.stringify(sidecar, null, 2));
+    return sidecarPath;
+}
+export async function generateOpenAIImage(input) {
+    const apiKey = input.apiKey ?? process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error('OPENAI_API_KEY not set');
+    }
+    const size = ratioToOpenAISize(input.ratio);
+    const buffer = input.inputPath
+        ? await generateEdit(input, apiKey, size)
+        : await generateText(input, apiKey, size);
+    fs.mkdirSync(path.dirname(input.outputPath), { recursive: true });
+    fs.writeFileSync(input.outputPath, buffer);
+    const sidecarPath = writeSidecar(input.outputPath, input, size);
+    return {
+        outputPath: input.outputPath,
+        sidecarPath,
+        bytes: buffer.length,
+        mimeType: 'image/png',
+        imageBase64: buffer.toString('base64'),
+        size,
+        provider: 'openai',
+    };
+}
+function parseCliArgs(argv) {
     const positional = [];
     const flags = {};
     for (let i = 0; i < argv.length; i++) {
@@ -68,151 +200,25 @@ function parseArgs(argv) {
         quality,
     };
 }
-function ratioToSize(ratio) {
-    if (!ratio)
-        return 'auto';
-    switch (ratio) {
-        case '1:1':
-            return '1024x1024';
-        case '2:3':
-        case '9:16':
-            return '1024x1536';
-        case '3:2':
-        case '4:3':
-        case '16:9':
-        case '21:9':
-            return '1536x1024';
-        default:
-            return 'auto';
-    }
-}
-function guessMimeFromExt(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.png')
-        return 'image/png';
-    if (ext === '.jpg' || ext === '.jpeg')
-        return 'image/jpeg';
-    if (ext === '.webp')
-        return 'image/webp';
-    throw new Error(`Unsupported input image extension for OpenAI edits: ${ext}`);
-}
-async function generateText(args, apiKey, size) {
-    const body = {
-        model: MODEL,
-        prompt: args.prompt,
-        n: 1,
-    };
-    if (size !== 'auto')
-        body.size = size;
-    if (args.quality)
-        body.quality = args.quality;
-    const res = await fetch(GEN_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-    });
-    const json = (await res.json());
-    if (!res.ok || json.error) {
-        throw new Error(json.error?.message ?? `HTTP ${res.status}`);
-    }
-    const b64 = json.data?.[0]?.b64_json;
-    if (!b64) {
-        throw new Error('No image in response');
-    }
-    return Buffer.from(b64, 'base64');
-}
-async function generateEdit(args, apiKey, size) {
-    if (!args.inputPath || !fs.existsSync(args.inputPath)) {
-        throw new Error(`Input image not found: ${args.inputPath}`);
-    }
-    const imageBytes = fs.readFileSync(args.inputPath);
-    const mime = guessMimeFromExt(args.inputPath);
-    const inputBasename = path.basename(args.inputPath);
-    const form = new FormData();
-    form.append('model', MODEL);
-    form.append('image', new Blob([new Uint8Array(imageBytes)], { type: mime }), inputBasename);
-    form.append('prompt', args.prompt);
-    form.append('n', '1');
-    if (size !== 'auto')
-        form.append('size', size);
-    if (args.quality)
-        form.append('quality', args.quality);
-    const res = await fetch(EDIT_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: form,
-    });
-    const json = (await res.json());
-    if (!res.ok || json.error) {
-        throw new Error(json.error?.message ?? `HTTP ${res.status}`);
-    }
-    const b64 = json.data?.[0]?.b64_json;
-    if (!b64) {
-        throw new Error('No image in response');
-    }
-    return Buffer.from(b64, 'base64');
-}
-function writeSidecar(outputPath, args, size) {
-    const dir = path.dirname(outputPath);
-    const base = path.basename(outputPath);
-    const metaDir = path.join(dir, '.meta');
-    fs.mkdirSync(metaDir, { recursive: true });
-    const sidecarPath = path.join(metaDir, `${base}.json`);
-    const sidecar = {
-        prompt: args.prompt,
-        provider: 'openai',
-        model: MODEL,
-        timestamp: new Date().toISOString(),
-    };
-    if (args.ratio)
-        sidecar.ratio = args.ratio;
-    if (size !== 'auto')
-        sidecar.size = size;
-    if (args.quality)
-        sidecar.quality = args.quality;
-    if (args.theme)
-        sidecar.theme = args.theme;
-    if (args.inputPath)
-        sidecar.inputPath = path.resolve(args.inputPath);
-    fs.writeFileSync(sidecarPath, JSON.stringify(sidecar, null, 2));
-    return sidecarPath;
-}
-async function main() {
-    let args;
+async function cliMain() {
+    let input;
     try {
-        args = parseArgs(process.argv.slice(2));
+        input = parseCliArgs(process.argv.slice(2));
     }
     catch (err) {
         console.error(err instanceof Error ? err.message : String(err));
         process.exit(1);
     }
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-        console.error('OPENAI_API_KEY not set');
-        process.exit(1);
-    }
-    const size = ratioToSize(args.ratio);
-    let buffer;
     try {
-        buffer = args.inputPath
-            ? await generateEdit(args, apiKey, size)
-            : await generateText(args, apiKey, size);
+        const result = await generateOpenAIImage(input);
+        console.log(`OK ${result.outputPath} (${result.bytes} bytes) sidecar ${result.sidecarPath}`);
     }
     catch (err) {
-        console.error(`API error: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(err instanceof Error ? err.message : String(err));
         process.exit(1);
     }
-    fs.mkdirSync(path.dirname(args.outputPath), { recursive: true });
-    fs.writeFileSync(args.outputPath, buffer);
-    const sidecarPath = writeSidecar(args.outputPath, args, size);
-    console.log(`OK ${args.outputPath} (${buffer.length} bytes) sidecar ${sidecarPath}`);
 }
-main().catch((err) => {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
-});
+const entryName = path.basename(process.argv[1] ?? '');
+if (entryName === 'openai-image.js' || entryName === 'openai-image.ts') {
+    cliMain();
+}

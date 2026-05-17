@@ -1,0 +1,40 @@
+[Unit]
+Description=proofsheet MCP server (HTTP transport)
+Documentation=https://github.com/Tosccony/proofsheet
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust User, Group, and WorkingDirectory to match your install.
+User=proofsheet
+Group=proofsheet
+WorkingDirectory=/opt/proofsheet
+ExecStart=/usr/bin/node /opt/proofsheet/bin/mcp-server.js --transport http --host 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5s
+# Keep the API keys out of /etc/systemd/system/ proper. Put them in a
+# root-owned file with chmod 600:
+#   /etc/proofsheet/env  containing two lines:
+#     GEMINI_API_KEY=...
+#     OPENAI_API_KEY=...
+EnvironmentFile=/etc/proofsheet/env
+# Hardening.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+# proofsheet writes generated images to its working directory by default.
+# Allow it to write under /opt/proofsheet/generated. Adjust if you change
+# the output path via the output_path tool argument.
+ReadWritePaths=/opt/proofsheet/generated
+
+[Install]
+WantedBy=multi-user.target
