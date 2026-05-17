@@ -1,0 +1,21 @@
+# Speed up Docker builds by excluding everything that isn't needed at runtime.
+# bin/ contains the already-bundled JS; we don't need node_modules or src/.
+
+node_modules/
+src/
+generated/
+.git/
+.github/
+deploy/
+docs/
+.worktrees/
+*.log
+.env
+.env.*
+.claude/
+.dockerignore
+Dockerfile
+README.md
+LICENSE
+tsconfig.json
+package-lock.json
