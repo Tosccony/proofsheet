@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+*.log
+
+# Local-only files
+.claude/settings.local.json
+.worktrees/
+
+# Generated test images (when running /image from within this repo)
+generated/
