@@ -1,10 +1,83 @@
 # proofsheet
 
-An MCP server for image generation, refinement, and reusable themes. Backed by either **Nano Banana** (Gemini 2.5 Flash Image) or **OpenAI** (gpt-image-1), with provider picked per call. Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
+An MCP server for image generation, refinement, and reusable themes. Backed by either **Nano Banana** (Gemini 2.5 Flash Image) or **OpenAI** (gpt-image-1), provider picked per call. Built for blog posts, slides, newsletters, social tiles, mood boards, and anything else that needs one good picture.
 
 Because proofsheet speaks the Model Context Protocol, it works in **Claude desktop, ChatGPT desktop, Claude Code, Codex, Cursor, Cline**, and any other MCP-compatible client. One server, many homes.
 
 The name comes from the photographer's contact sheet, the grid of options you pick from before printing the keeper.
+
+```
+npm install -g proofsheet     # optional, or just use npx below
+```
+
+## Quick install (every MCP client uses the same shape)
+
+You bring your own API keys. proofsheet runs locally on your machine via `npx`. Nothing is hosted, nothing is shared, your keys never leave your config file.
+
+You need at least one of:
+
+- **Gemini key** ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)) with billing enabled. About $0.04 per image. No free tier.
+- **OpenAI key** ([platform.openai.com/api-keys](https://platform.openai.com/api-keys)). About $0.04 standard, up to $0.17 high quality. Note: a ChatGPT subscription does **not** cover API usage.
+
+Then add the snippet below to your MCP client's config.
+
+### Claude desktop
+
+Edit your config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```jsonc
+{
+  "mcpServers": {
+    "proofsheet": {
+      "command": "npx",
+      "args": ["-y", "proofsheet"],
+      "env": {
+        "GEMINI_API_KEY": "your-gemini-key",
+        "OPENAI_API_KEY": "your-openai-key"
+      }
+    }
+  }
+}
+```
+
+Restart Claude desktop. The four proofsheet tools show up under the available tools. Ask Claude to "generate an image of X" and it renders inline in the chat.
+
+### ChatGPT desktop
+
+ChatGPT desktop supports custom MCP connectors via the developer feature (requires Plus or Pro). Add a connector with command `npx` and args `-y proofsheet`, plus the same `GEMINI_API_KEY` and `OPENAI_API_KEY` env vars.
+
+### Claude Code (CLI)
+
+Same config format as Claude desktop. Add proofsheet to your Claude Code MCP config.
+
+### Codex (CLI)
+
+Edit `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.proofsheet]
+command = "npx"
+args = ["-y", "proofsheet"]
+
+[mcp_servers.proofsheet.env]
+GEMINI_API_KEY = "your-gemini-key"
+OPENAI_API_KEY = "your-openai-key"
+```
+
+### Cursor, Cline, and other MCP clients
+
+Same pattern. Wherever your client lists MCP servers, set:
+
+```
+command: npx
+args:    -y proofsheet
+env:     GEMINI_API_KEY=..., OPENAI_API_KEY=...
+```
+
+That's it. `npx -y proofsheet` downloads proofsheet from npm on first run, caches it locally, and launches the MCP server. No clone, no path management, no manual install.
 
 ## What you get
 
@@ -21,11 +94,11 @@ The name comes from the photographer's contact sheet, the grid of options you pi
 | `refinement_picker` | Decision guide for whether to use `mode: "tweak"` vs `mode: "edit"` on `refine_image`. |
 | `theme_builder` | Guided conversation flow for building a custom theme and saving it as `themes/<slug>.md`. |
 
-Every generated or refined image gets a sidecar JSON written to `<dir>/.meta/<basename>.json` containing the prompt, ratio, theme, provider, and timestamp. So `refine_image` works on any image you have, even from a year ago, even after the original chat is gone.
+Every generated or refined image gets a sidecar JSON at `<dir>/.meta/<basename>.json` containing the prompt, ratio, theme, provider, and timestamp. So `refine_image` works on any image you have, even from a year ago, even after the original chat is gone.
 
 ## Two providers
 
-Pick per call via the `provider` argument on `generate_image` or `refine_image`. They have different strengths.
+Pick per call via the `provider` argument. They have different strengths.
 
 | | Gemini (Nano Banana) | OpenAI (gpt-image-1) |
 |---|---|---|
@@ -35,7 +108,7 @@ Pick per call via the `provider` argument on `generate_image` or `refine_image`.
 | Cost per image | About $0.04 | About $0.04 standard, up to about $0.17 high quality |
 | API auth | `GEMINI_API_KEY` | `OPENAI_API_KEY` (ChatGPT subscription does **not** cover API) |
 
-Default is `gemini`. Set neither key and the corresponding provider just isn't available. Set both and you can switch per call.
+Default is `gemini`. Set neither key and the corresponding provider just isn't available. Set both and switch per call.
 
 ## Seeded themes
 
@@ -53,123 +126,34 @@ Nine themes ship with proofsheet. Use any via the `theme` argument: `generate_im
 | `corporate-clean` | Bright even lighting, neutral palette, no drama. | Business decks, LinkedIn banners. |
 | `portfolio-gouache` | Hand-painted gouache in the Maira Kalman observational style. | Personal portfolios, intimate editorial. |
 
-Build your own with the `theme_builder` prompt template. Themes live in `themes/<slug>.md` as plain markdown frontmatter + a body fragment.
+Build your own with the `theme_builder` prompt template. Themes live in `themes/<slug>.md` as plain markdown frontmatter plus a body fragment.
 
-## Setup
+## Install from source (only if you want to hack on it)
 
-You need:
-
-1. **Node 18 or higher** (for built-in `fetch` and `FormData`).
-2. **At least one API key**:
-   - `GEMINI_API_KEY` with billing enabled on the AI Studio account.
-   - `OPENAI_API_KEY` from https://platform.openai.com/api-keys. Pay-per-image, separate from any ChatGPT subscription.
-
-On Windows PowerShell:
-
-```powershell
-[System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'YOUR-KEY', 'User')
-[System.Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'YOUR-KEY', 'User')
-```
-
-On macOS / Linux:
-
-```bash
-echo 'export GEMINI_API_KEY="..."' >> ~/.zshrc
-echo 'export OPENAI_API_KEY="..."' >> ~/.zshrc
-```
-
-Restart your terminal after setting. The proofsheet server reads keys from the environment of whatever process launches it.
-
-## Install (local)
-
-Clone the repo and you're done. The `bin/mcp-server.js` ships precompiled and bundled with all dependencies, so there is no `npm install` needed to run it.
+Skip this section unless you're developing proofsheet itself. For normal use, the `npx -y proofsheet` snippet above is all you need.
 
 ```bash
 git clone https://github.com/Tosccony/proofsheet
 cd proofsheet
-node bin/mcp-server.js   # stdio mode, ready for desktop apps to launch
-```
-
-If you want to hack on the TypeScript source in `src/`, then you do need to install dev dependencies:
-
-```bash
 npm install
-npm run build   # rebuilds bin/mcp-server.js
+npm run build           # compiles src/ -> bin/
+npm run mcp             # runs the MCP server via stdio
 ```
 
-## Connecting clients
+Then in your MCP client config, replace `"command": "npx", "args": ["-y", "proofsheet"]` with `"command": "node", "args": ["/full/path/to/proofsheet/bin/mcp-server.js"]`.
 
-### Claude desktop
+## Using the engine scripts directly
 
-Edit your config file:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```jsonc
-{
-  "mcpServers": {
-    "proofsheet": {
-      "command": "node",
-      "args": ["/absolute/path/to/proofsheet/bin/mcp-server.js"],
-      "env": {
-        "GEMINI_API_KEY": "...",
-        "OPENAI_API_KEY": "..."
-      }
-    }
-  }
-}
-```
-
-Restart Claude desktop. The four tools and three prompt templates show up under the proofsheet server. Ask Claude to "generate an image of X" and it'll call `generate_image` and render the result inline.
-
-### ChatGPT desktop
-
-ChatGPT desktop supports custom MCP connectors via the developer/connectors feature (Plus or Pro required). Add a new connector pointing at the same `mcp-server.js` script. ChatGPT's flow is currently more polished for remote (HTTPS) MCP than local stdio, so you may want to host proofsheet on a server (see [`deploy/`](./deploy/)) for the most reliable ChatGPT desktop integration.
-
-### Claude Code (CLI)
-
-Claude Code reads the same MCP config format as the desktop app. Add proofsheet under `mcpServers` in your Claude Code config (or use the same `claude_desktop_config.json` if shared). After restart, tools become available to invoke in any Claude Code session.
-
-### Codex (CLI)
-
-In `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.proofsheet]
-command = "node"
-args = ["/absolute/path/to/proofsheet/bin/mcp-server.js"]
-
-[mcp_servers.proofsheet.env]
-GEMINI_API_KEY = "..."
-OPENAI_API_KEY = "..."
-```
-
-### Cursor, Cline, and other MCP clients
-
-Same pattern: point them at `node /path/to/proofsheet/bin/mcp-server.js` as the stdio MCP server command. Each client has its own config format; consult their docs for where MCP servers are configured.
-
-## Hosting proofsheet on your own server
-
-For multi-device or remote-MCP-only clients (like ChatGPT desktop on iPad), host proofsheet as an HTTP MCP server on a Linux box. The [`deploy/`](./deploy/) directory has a sample `systemd` unit and a full setup walkthrough including Tailscale, Caddy + bearer token, and Cloudflare Tunnel options.
-
-```bash
-node bin/mcp-server.js --transport http --host 127.0.0.1 --port 3000
-```
-
-The HTTP transport uses MCP's Streamable HTTP protocol. Clients that only speak stdio (most desktop apps currently) can connect to it via `npx mcp-remote https://your-host:port` as a stdio-to-HTTP bridge. See [`deploy/README.md`](./deploy/README.md) for details.
-
-**Critical**: do not expose the HTTP transport to the public internet without auth. API key abuse will rack up real charges. Use Tailscale, a reverse proxy with bearer tokens, or Cloudflare Access.
-
-## Using the CLI directly (without MCP)
-
-The two engine scripts that the MCP server delegates to are also runnable standalone:
+If you want to bypass MCP entirely:
 
 ```bash
 # Gemini text-to-image
+npx proofsheet --help                  # shows the MCP server, not the engine scripts
+
+# After installing from source:
 node bin/gemini-image.js "a single white tulip on raw linen, soft window light, shot on medium-format film, 4:3 aspect ratio, no text overlays" "out.png" --ratio 4:3
 
-# Gemini image-to-image refinement
+# Image-to-image refinement
 node bin/gemini-image.js "Warm the lighting to a golden afternoon tone. Keep subject and composition unchanged." "out-refined.png" --input "out.png"
 
 # OpenAI text-to-image, high quality
@@ -178,33 +162,33 @@ node bin/openai-image.js "a single white tulip on raw linen, 1:1 aspect ratio" "
 
 Each call writes a sidecar to `<dir>/.meta/<basename>.json`.
 
-## File layout
+## Self-hosting as an HTTP MCP server
 
-```
-proofsheet/
-  .git/
-  src/                   TypeScript source
-    mcp-server.ts
-    gemini-image.ts
-    openai-image.ts
-  bin/                   compiled JavaScript, shipped with the repo
-    mcp-server.js        bundled (includes MCP SDK and deps)
-    gemini-image.js      standalone
-    openai-image.js      standalone
-  themes/                seeded themes (markdown frontmatter + body fragments)
-    editorial-photography.md
-    moody-cinematic.md
-    ...
-  deploy/                self-hosting (systemd unit, hosting guide)
-    proofsheet.service
-    README.md
-  README.md
-  LICENSE
-  package.json
-  tsconfig.json
+The default `proofsheet` command runs in stdio mode. To run it as an HTTP server (for multi-device access via a single instance you host, or for clients that prefer remote MCP):
+
+```bash
+npx proofsheet --transport http --port 3000
 ```
 
-Generated images go to `./generated/_images/<slug>-<timestamp>.png` in the current working directory of whichever process launches proofsheet. That's typically your project directory, so images travel with your work.
+The [`deploy/`](https://github.com/Tosccony/proofsheet/tree/main/deploy) directory in the GitHub repo has a sample `systemd` unit and a setup walkthrough covering Tailscale, Caddy + bearer token, and Cloudflare Tunnel options.
+
+**Critical**: do not expose the HTTP transport to the public internet without auth. Whoever can reach it will burn your API credit. Tailscale or a reverse proxy with bearer tokens are the easy mitigations.
+
+## How proofsheet enriches prompts
+
+A user typing "fisherman on a dock" doesn't produce a good image. The `art_direction` MCP prompt template tells the model how to convert that into a structured prompt with:
+
+- **Subject** — concrete noun phrase ("a weathered fisherman in a yellow oilskin")
+- **Environment** — where the subject lives
+- **Composition** — framing, angle, placement
+- **Lighting** — source + quality + time of day
+- **Medium / lens** — the biggest stylistic lever (photographic vs illustrated vs painted)
+- **Texture words** — "raw linen, weathered wood, matte ceramic" anchor reality
+- **Mood** — one or two atmosphere words
+- **Negative cues** — no text overlays, no brand logos, no watermarks
+- **Aspect ratio** in prose at the very end
+
+This is the entire value of proofsheet. The image-gen APIs follow direction very well; a thin prompt produces a thin image. The MCP server's job is to do the art-direction work the user didn't write down.
 
 ## License
 
