@@ -1,6 +1,6 @@
 {
   "name": "proofsheet",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "MCP server for image generation, refinement, and reusable themes. Backed by Nano Banana (Gemini 2.5 Flash Image) or gpt-image-1 (OpenAI). Works in Claude desktop, ChatGPT desktop, Claude Code, Codex, Cursor, Cline, and any other MCP-compatible client. Includes `proofsheet init` to auto-register with your installed clients.",
   "type": "module",
   "bin": {

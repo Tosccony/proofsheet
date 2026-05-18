@@ -26,6 +26,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -41,11 +42,38 @@ import {
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 
+// Per-request context lets tool handlers read HTTP headers (sent by gateways
+// like Smithery that pass user-supplied config via headers) without changing
+// the MCP SDK's handler signature. Set at the HTTP transport boundary,
+// read by handleGenerateImage / handleRefineImage when resolving API keys.
+interface RequestContext {
+  headers: Record<string, string>;
+}
+const requestContext = new AsyncLocalStorage<RequestContext>();
+
+function getApiKey(envName: string, headerName: string): string | undefined {
+  const ctx = requestContext.getStore();
+  if (ctx?.headers) {
+    const fromHeader = ctx.headers[headerName.toLowerCase()];
+    if (fromHeader) return fromHeader;
+  }
+  return process.env[envName];
+}
+
+function normalizeHeaders(rawHeaders: Record<string, string | string[] | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rawHeaders)) {
+    if (typeof v === 'string') out[k.toLowerCase()] = v;
+    else if (Array.isArray(v) && v.length > 0) out[k.toLowerCase()] = v[0];
+  }
+  return out;
+}
+
 import { generateGeminiImage, type GeminiGenerateInput } from './gemini-image.js';
 import { generateOpenAIImage, type OpenAIGenerateInput, type OpenAIQuality } from './openai-image.js';
 
 const SERVER_NAME = 'proofsheet';
-const SERVER_VERSION = '0.5.0';
+const SERVER_VERSION = '0.6.0';
 
 // Resolve the plugin root from this file's location so themes/ lookups work
 // regardless of cwd. Source: src/mcp-server.ts; compiled: bin/mcp-server.js.
@@ -399,10 +427,12 @@ async function handleGenerateImage(args: Record<string, unknown>) {
 
   let result;
   if (provider === 'openai') {
-    const input: OpenAIGenerateInput = { prompt, outputPath, theme, ratio, quality };
+    const apiKey = getApiKey('OPENAI_API_KEY', 'x-openai-api-key');
+    const input: OpenAIGenerateInput = { prompt, outputPath, theme, ratio, quality, apiKey };
     result = await generateOpenAIImage(input);
   } else {
-    const input: GeminiGenerateInput = { prompt, outputPath, theme, ratio };
+    const apiKey = getApiKey('GEMINI_API_KEY', 'x-gemini-api-key');
+    const input: GeminiGenerateInput = { prompt, outputPath, theme, ratio, apiKey };
     result = await generateGeminiImage(input);
   }
 
@@ -468,6 +498,10 @@ async function handleRefineImage(args: Record<string, unknown>) {
         .replace(/\..+/, '')}.png`,
     );
 
+  // Resolve the right key per provider from headers or env.
+  const geminiKey = getApiKey('GEMINI_API_KEY', 'x-gemini-api-key');
+  const openaiKey = getApiKey('OPENAI_API_KEY', 'x-openai-api-key');
+
   let result;
   if (mode === 'edit') {
     if (provider === 'openai') {
@@ -478,6 +512,7 @@ async function handleRefineImage(args: Record<string, unknown>) {
         ratio,
         theme,
         quality,
+        apiKey: openaiKey,
       });
     } else {
       result = await generateGeminiImage({
@@ -486,6 +521,7 @@ async function handleRefineImage(args: Record<string, unknown>) {
         inputPath,
         ratio,
         theme,
+        apiKey: geminiKey,
       });
     }
   } else {
@@ -497,6 +533,7 @@ async function handleRefineImage(args: Record<string, unknown>) {
         ratio,
         theme,
         quality,
+        apiKey: openaiKey,
       });
     } else {
       result = await generateGeminiImage({
@@ -504,6 +541,7 @@ async function handleRefineImage(args: Record<string, unknown>) {
         outputPath,
         ratio,
         theme,
+        apiKey: geminiKey,
       });
     }
   }
@@ -611,7 +649,11 @@ async function startHttp(server: Server, host: string, port: number): Promise<vo
       return;
     }
 
-    await transport.handleRequest(req, res);
+    // Run the MCP request inside an AsyncLocalStorage scope so tool handlers
+    // can resolve user-supplied API keys from headers (sent by gateways like
+    // Smithery) rather than only from env vars.
+    const headers = normalizeHeaders(req.headers);
+    await requestContext.run({ headers }, () => transport!.handleRequest(req, res));
   });
 
   await new Promise<void>((resolve) => {

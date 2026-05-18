@@ -25,16 +25,37 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, GetPromptRequestSchema, ListPromptsRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
+const requestContext = new AsyncLocalStorage();
+function getApiKey(envName, headerName) {
+    const ctx = requestContext.getStore();
+    if (ctx?.headers) {
+        const fromHeader = ctx.headers[headerName.toLowerCase()];
+        if (fromHeader)
+            return fromHeader;
+    }
+    return process.env[envName];
+}
+function normalizeHeaders(rawHeaders) {
+    const out = {};
+    for (const [k, v] of Object.entries(rawHeaders)) {
+        if (typeof v === 'string')
+            out[k.toLowerCase()] = v;
+        else if (Array.isArray(v) && v.length > 0)
+            out[k.toLowerCase()] = v[0];
+    }
+    return out;
+}
 import { generateGeminiImage } from './gemini-image.js';
 import { generateOpenAIImage } from './openai-image.js';
 const SERVER_NAME = 'proofsheet';
-const SERVER_VERSION = '0.5.0';
+const SERVER_VERSION = '0.6.0';
 // Resolve the plugin root from this file's location so themes/ lookups work
 // regardless of cwd. Source: src/mcp-server.ts; compiled: bin/mcp-server.js.
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -346,11 +367,13 @@ async function handleGenerateImage(args) {
     const outputPath = args.output_path ?? defaultOutputPath(prompt);
     let result;
     if (provider === 'openai') {
-        const input = { prompt, outputPath, theme, ratio, quality };
+        const apiKey = getApiKey('OPENAI_API_KEY', 'x-openai-api-key');
+        const input = { prompt, outputPath, theme, ratio, quality, apiKey };
         result = await generateOpenAIImage(input);
     }
     else {
-        const input = { prompt, outputPath, theme, ratio };
+        const apiKey = getApiKey('GEMINI_API_KEY', 'x-gemini-api-key');
+        const input = { prompt, outputPath, theme, ratio, apiKey };
         result = await generateGeminiImage(input);
     }
     return {
@@ -403,6 +426,9 @@ async function handleRefineImage(args) {
             .toISOString()
             .replace(/[-:T]/g, '')
             .replace(/\..+/, '')}.png`);
+    // Resolve the right key per provider from headers or env.
+    const geminiKey = getApiKey('GEMINI_API_KEY', 'x-gemini-api-key');
+    const openaiKey = getApiKey('OPENAI_API_KEY', 'x-openai-api-key');
     let result;
     if (mode === 'edit') {
         if (provider === 'openai') {
@@ -413,6 +439,7 @@ async function handleRefineImage(args) {
                 ratio,
                 theme,
                 quality,
+                apiKey: openaiKey,
             });
         }
         else {
@@ -422,6 +449,7 @@ async function handleRefineImage(args) {
                 inputPath,
                 ratio,
                 theme,
+                apiKey: geminiKey,
             });
         }
     }
@@ -434,6 +462,7 @@ async function handleRefineImage(args) {
                 ratio,
                 theme,
                 quality,
+                apiKey: openaiKey,
             });
         }
         else {
@@ -442,6 +471,7 @@ async function handleRefineImage(args) {
                 outputPath,
                 ratio,
                 theme,
+                apiKey: geminiKey,
             });
         }
     }
@@ -547,7 +577,11 @@ async function startHttp(server, host, port) {
             res.end('No transport for session');
             return;
         }
-        await transport.handleRequest(req, res);
+        // Run the MCP request inside an AsyncLocalStorage scope so tool handlers
+        // can resolve user-supplied API keys from headers (sent by gateways like
+        // Smithery) rather than only from env vars.
+        const headers = normalizeHeaders(req.headers);
+        await requestContext.run({ headers }, () => transport.handleRequest(req, res));
     });
     await new Promise((resolve) => {
         httpServer.listen(port, host, () => {

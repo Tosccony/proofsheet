@@ -13,7 +13,7 @@
  */
 import { runServer } from './mcp-server.js';
 import { runInit } from './init.js';
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 function printHelp() {
     process.stdout.write(`proofsheet v${VERSION}
 MCP server for image generation, refinement, and reusable themes.

@@ -6889,6 +6889,7 @@ var require_dist = __commonJS({
 import * as fs3 from "node:fs";
 import * as path3 from "node:path";
 import { fileURLToPath } from "node:url";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 // node_modules/zod/v4/core/core.js
 var _a;
@@ -17110,8 +17111,25 @@ if (entryName2 === "openai-image.js" || entryName2 === "openai-image.ts") {
 }
 
 // src/mcp-server.ts
+var requestContext = new AsyncLocalStorage();
+function getApiKey(envName, headerName) {
+  const ctx = requestContext.getStore();
+  if (ctx?.headers) {
+    const fromHeader = ctx.headers[headerName.toLowerCase()];
+    if (fromHeader) return fromHeader;
+  }
+  return process.env[envName];
+}
+function normalizeHeaders(rawHeaders) {
+  const out = {};
+  for (const [k, v] of Object.entries(rawHeaders)) {
+    if (typeof v === "string") out[k.toLowerCase()] = v;
+    else if (Array.isArray(v) && v.length > 0) out[k.toLowerCase()] = v[0];
+  }
+  return out;
+}
 var SERVER_NAME = "proofsheet";
-var SERVER_VERSION = "0.5.0";
+var SERVER_VERSION = "0.6.0";
 var moduleDir = path3.dirname(fileURLToPath(import.meta.url));
 var pluginRoot = path3.resolve(moduleDir, "..");
 var themesDir = path3.join(pluginRoot, "themes");
@@ -17403,10 +17421,12 @@ async function handleGenerateImage(args) {
   const outputPath = args.output_path ?? defaultOutputPath(prompt2);
   let result;
   if (provider === "openai") {
-    const input = { prompt: prompt2, outputPath, theme, ratio, quality };
+    const apiKey = getApiKey("OPENAI_API_KEY", "x-openai-api-key");
+    const input = { prompt: prompt2, outputPath, theme, ratio, quality, apiKey };
     result = await generateOpenAIImage(input);
   } else {
-    const input = { prompt: prompt2, outputPath, theme, ratio };
+    const apiKey = getApiKey("GEMINI_API_KEY", "x-gemini-api-key");
+    const input = { prompt: prompt2, outputPath, theme, ratio, apiKey };
     result = await generateGeminiImage(input);
   }
   return {
@@ -17455,6 +17475,8 @@ async function handleRefineImage(args) {
     path3.dirname(inputPath),
     `${path3.basename(inputPath, path3.extname(inputPath))}-${suffix}-${(/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").replace(/\..+/, "")}.png`
   );
+  const geminiKey = getApiKey("GEMINI_API_KEY", "x-gemini-api-key");
+  const openaiKey = getApiKey("OPENAI_API_KEY", "x-openai-api-key");
   let result;
   if (mode === "edit") {
     if (provider === "openai") {
@@ -17464,7 +17486,8 @@ async function handleRefineImage(args) {
         inputPath,
         ratio,
         theme,
-        quality
+        quality,
+        apiKey: openaiKey
       });
     } else {
       result = await generateGeminiImage({
@@ -17472,7 +17495,8 @@ async function handleRefineImage(args) {
         outputPath,
         inputPath,
         ratio,
-        theme
+        theme,
+        apiKey: geminiKey
       });
     }
   } else {
@@ -17482,14 +17506,16 @@ async function handleRefineImage(args) {
         outputPath,
         ratio,
         theme,
-        quality
+        quality,
+        apiKey: openaiKey
       });
     } else {
       result = await generateGeminiImage({
         prompt: instruction,
         outputPath,
         ratio,
-        theme
+        theme,
+        apiKey: geminiKey
       });
     }
   }
@@ -17580,7 +17606,8 @@ async function startHttp(server, host, port) {
       res.end("No transport for session");
       return;
     }
-    await transport.handleRequest(req, res);
+    const headers = normalizeHeaders(req.headers);
+    await requestContext.run({ headers }, () => transport.handleRequest(req, res));
   });
   await new Promise((resolve4) => {
     httpServer.listen(port, host, () => {
@@ -18701,7 +18728,7 @@ async function runInit(_argv) {
 }
 
 // src/cli.ts
-var VERSION = "0.5.0";
+var VERSION = "0.6.0";
 function printHelp() {
   process.stdout.write(`proofsheet v${VERSION}
 MCP server for image generation, refinement, and reusable themes.
